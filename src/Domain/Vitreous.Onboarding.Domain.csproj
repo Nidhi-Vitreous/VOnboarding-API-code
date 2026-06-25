@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Vitreous.Onboarding.Domain</RootNamespace>
+    <AssemblyName>Vitreous.Onboarding.Domain</AssemblyName>
+  </PropertyGroup>
+
+</Project>

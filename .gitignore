@@ -1,0 +1,53 @@
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+## Rider
+.idea/
+*.sln.iml
+
+## User secrets
+secrets.json
+appsettings.Development.json
+appsettings.Local.json
+
+## Environment
+.env
+.env.local
+
+## Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+## NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## EF Core
+# Migrations will be committed when added
+
+## OS
+.DS_Store
+Thumbs.db

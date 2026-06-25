@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Vitreous.Onboarding.Application</RootNamespace>
+    <AssemblyName>Vitreous.Onboarding.Application</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\Vitreous.Onboarding.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

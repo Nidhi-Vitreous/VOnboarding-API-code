@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>Vitreous.Onboarding.Api</RootNamespace>
+    <AssemblyName>Vitreous.Onboarding.Api</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Application\Vitreous.Onboarding.Application.csproj" />
+    <ProjectReference Include="..\Infrastructure\Vitreous.Onboarding.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
