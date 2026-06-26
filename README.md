@@ -11,7 +11,7 @@ dotnet build
 dotnet run --project src/Api/Vitreous.Onboarding.Api.csproj
 ```
 
-Health check: http://localhost:5000/health
+Health check: http://localhost:5000/api/v1/health
 
 ## Solution
 
@@ -34,6 +34,7 @@ Health check: http://localhost:5000/health
 - `Features/Administration/`
 
 Add controllers under `src/Api/Controllers/` per feature when implementing APIs.
+All routes are prefixed with `/api/v1` via `RoutePrefixConvention` — do not repeat the prefix on individual controllers.
 
 ## Configuration
 
