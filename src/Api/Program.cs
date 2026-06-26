@@ -1,12 +1,25 @@
+using Vitreous.Onboarding.Api.Configuration;
+using Vitreous.Onboarding.Application;
+using Vitreous.Onboarding.Infrastructure;
+using Vitreous.Onboarding.Infrastructure.Persistence;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApiServices(builder.Configuration);
 
 var app = builder.Build();
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    await DatabaseInitializer.InitializeAsync(app.Services);
+}
+
+app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
-app.MapGet("/health", () => Results.Ok(new { status = "UP" }));
 
 app.Run();
 
