@@ -16,6 +16,7 @@ if (!app.Environment.IsEnvironment("Testing"))
     await DatabaseInitializer.InitializeAsync(app.Services);
 }
 
+app.UseSwaggerDocumentation();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
