@@ -23,9 +23,12 @@ public static class DependencyInjection
             });
         });
 
+        var apiRoutePrefix = configuration["Application:ApiRoutePrefix"]
+            ?? throw new InvalidOperationException("Application:ApiRoutePrefix is not configured.");
+
         services.AddControllers(options =>
             {
-                options.Conventions.Insert(0, new RoutePrefixConvention("api/v1"));
+                options.Conventions.Insert(0, new RoutePrefixConvention(apiRoutePrefix));
             })
             .AddJsonOptions(options =>
             {
@@ -36,9 +39,10 @@ public static class DependencyInjection
         var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
             ?? throw new InvalidOperationException("JWT configuration is missing.");
 
-        if (string.IsNullOrWhiteSpace(jwtOptions.Secret) || jwtOptions.Secret == "CHANGE_ME_IN_USER_SECRETS")
+        if (string.IsNullOrWhiteSpace(jwtOptions.Secret))
         {
-            jwtOptions.Secret = "DevOnlySecretKey_ChangeMeBeforeProduction_Use32CharsMinimum!";
+            throw new InvalidOperationException(
+                "JWT Secret is not configured. Set Jwt:Secret in appsettings or user secrets.");
         }
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
