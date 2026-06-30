@@ -1,4 +1,5 @@
 using Vitreous.Onboarding.Api.Configuration;
+using Vitreous.Onboarding.Api.Middleware;
 using Vitreous.Onboarding.Application;
 using Vitreous.Onboarding.Infrastructure;
 using Vitreous.Onboarding.Infrastructure.Persistence;
@@ -16,6 +17,7 @@ if (!app.Environment.IsEnvironment("Testing"))
     await DatabaseInitializer.InitializeAsync(app.Services);
 }
 
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseSwaggerDocumentation();
 app.UseCors();
 app.UseAuthentication();
