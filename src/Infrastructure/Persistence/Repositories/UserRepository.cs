@@ -47,6 +47,34 @@ public sealed class UserRepository(ApplicationDbContext dbContext) : IUserReposi
 
         return query.AnyAsync(cancellationToken);
     }
+
+    public Task<bool> RoleNameInUseAsync(string roleName, CancellationToken cancellationToken = default) =>
+        dbContext.Users.AsNoTracking()
+            .AnyAsync(u => u.Role.ToLower() == roleName.ToLower(), cancellationToken);
+
+    public async Task<IReadOnlyDictionary<string, int>> GetActiveUserCountsByRoleNamesAsync(
+        IEnumerable<string> roleNames,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedRoleNames = roleNames
+            .Select(name => name.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        if (normalizedRoleNames.Count == 0)
+        {
+            return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var counts = await dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.IsActive && normalizedRoleNames.Contains(u.Role.ToLower()))
+            .GroupBy(u => u.Role)
+            .Select(g => new { Role = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        return counts.ToDictionary(x => x.Role, x => x.Count, StringComparer.OrdinalIgnoreCase);
+    }
 }
 
 public sealed class RefreshTokenRepository(ApplicationDbContext dbContext) : IRefreshTokenRepository

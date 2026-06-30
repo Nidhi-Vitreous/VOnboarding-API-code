@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -17,5 +18,10 @@
     <ProjectReference Include="..\Application\Vitreous.Onboarding.Application.csproj" />
     <ProjectReference Include="..\Infrastructure\Vitreous.Onboarding.Infrastructure.csproj" />
   </ItemGroup>
+
+  <!-- Stop orphaned API hosts (e.g. from terminal/Cursor) so VS can rebuild and bind port 5000. -->
+  <Target Name="StopStaleApiHost" BeforeTargets="Build;Rebuild" Condition="'$(Configuration)' == 'Debug'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Get-Process -Name 'Vitreous.Onboarding.Api' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; $p = Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess; if ($p) { $n = (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName; if ($n -eq 'Vitreous.Onboarding.Api' -or $n -eq 'dotnet') { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } }&quot;" IgnoreExitCode="true" ContinueOnError="true" />
+  </Target>
 
 </Project>

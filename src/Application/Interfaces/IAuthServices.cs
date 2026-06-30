@@ -13,6 +13,10 @@ public interface IUserRepository
     Task AddAsync(User user, CancellationToken cancellationToken = default);
     Task UpdateAsync(User user, CancellationToken cancellationToken = default);
     Task<bool> UsernameExistsAsync(string username, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
+    Task<bool> RoleNameInUseAsync(string roleName, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<string, int>> GetActiveUserCountsByRoleNamesAsync(
+        IEnumerable<string> roleNames,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IRefreshTokenRepository
