@@ -17,8 +17,33 @@ public sealed class UserRepository(ApplicationDbContext dbContext) : IUserReposi
         dbContext.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == email.ToLower(), cancellationToken);
 
-    public async Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.Users.AsNoTracking().OrderBy(u => u.Username).ToListAsync(cancellationToken);
+    public async Task<(IReadOnlyList<User> Items, int TotalCount)> GetPageAsync(
+        int page,
+        int pageSize,
+        string? search,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Users.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLowerInvariant();
+            query = query.Where(u =>
+                u.Username.ToLower().Contains(term)
+                || (u.Email != null && u.Email.ToLower().Contains(term))
+                || (u.FullName != null && u.FullName.ToLower().Contains(term)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderBy(u => u.Username)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
 
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
