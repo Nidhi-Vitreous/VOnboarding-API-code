@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Vitreous.Onboarding.Api.Authorization;
+using Vitreous.Onboarding.Application.Authorization;
 using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Users;
@@ -12,6 +14,7 @@ namespace Vitreous.Onboarding.Api.Controllers;
 public sealed class UsersController(IUserService userService) : ControllerBase
 {
     [HttpGet]
+    [RequireSystemPermission(PermissionSystemNames.UsersRead)]
     [ProducesResponseType(typeof(UserListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
@@ -26,6 +29,7 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequireSystemPermission(PermissionSystemNames.UsersRead)]
     [ProducesResponseType(typeof(UserDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
