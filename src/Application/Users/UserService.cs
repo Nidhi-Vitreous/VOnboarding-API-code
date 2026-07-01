@@ -1,11 +1,20 @@
+using System.Security.Cryptography;
 using Vitreous.Onboarding.Application.Auth;
+using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Domain.Entities;
 
 namespace Vitreous.Onboarding.Application.Users;
 
-public sealed class UserService(IUserRepository userRepository) : IUserService
+public sealed class UserService(
+    IUserRepository userRepository,
+    IRoleRepository roleRepository,
+    IPasswordHasher passwordHasher) : IUserService
 {
+    private const int MaxUsernameLength = 128;
+    private const int MaxUsernameDedupAttempts = 10_000;
+    private const int TemporaryPasswordByteLength = 24;
+
     public async Task<UserDetailDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var user = await userRepository.GetByIdAsync(id, cancellationToken);
@@ -45,6 +54,53 @@ public sealed class UserService(IUserRepository userRepository) : IUserService
         };
     }
 
+    public async Task<UserCreatedResponse> CreateAsync(
+        UserCreateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        UserValidation.ValidateRequest(request);
+
+        var role = await roleRepository.GetRoleByIdAsync(request.RoleId, cancellationToken);
+        if (role is null)
+        {
+            throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleNotFound);
+        }
+
+        if (!role.IsActive)
+        {
+            throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleInactive);
+        }
+
+        var email = request.Email.Trim();
+        var username = await ResolveUniqueUsernameAsync(email, cancellationToken);
+        var temporaryPassword = GenerateTemporaryPassword();
+        var now = DateTime.UtcNow;
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Username = username,
+            Email = email,
+            PasswordHash = passwordHasher.Hash(temporaryPassword),
+            Role = role.Name,
+            FullName = request.FullName.Trim(),
+            Department = request.Department?.Trim(),
+            PhoneNumber = request.PhoneNumber?.Trim(),
+            IsActive = request.IsActive,
+            CreatedAt = now,
+            UpdatedAt = now,
+            LastLoginAt = null,
+        };
+
+        await userRepository.AddAsync(user, cancellationToken);
+
+        return new UserCreatedResponse
+        {
+            User = MapToDetail(user),
+            TemporaryPassword = temporaryPassword,
+        };
+    }
+
     internal static UserSummaryDto MapToSummary(User user) => new()
     {
         Id = user.Id,
@@ -78,4 +134,34 @@ public sealed class UserService(IUserRepository userRepository) : IUserService
         Email = user.Email,
         Role = user.Role,
     };
+
+    private async Task<string> ResolveUniqueUsernameAsync(string email, CancellationToken cancellationToken)
+    {
+        var localPart = email.Split('@')[0].Trim().ToLowerInvariant();
+
+        for (var suffix = 0; suffix <= MaxUsernameDedupAttempts; suffix++)
+        {
+            var candidate = BuildUsernameCandidate(localPart, suffix);
+            if (!await userRepository.UsernameExistsAsync(candidate, cancellationToken: cancellationToken))
+            {
+                return candidate;
+            }
+        }
+
+        throw new BusinessRuleException(UserMessages.DuplicateUsername);
+    }
+
+    private static string BuildUsernameCandidate(string localPart, int suffix)
+    {
+        var suffixText = suffix == 0 ? string.Empty : suffix.ToString();
+        var maxBaseLength = MaxUsernameLength - suffixText.Length;
+        var basePart = localPart.Length > maxBaseLength ? localPart[..maxBaseLength] : localPart;
+        return $"{basePart}{suffixText}";
+    }
+
+    private static string GenerateTemporaryPassword() =>
+        Convert.ToBase64String(RandomNumberGenerator.GetBytes(TemporaryPasswordByteLength))
+            .TrimEnd('=')
+            .Replace('+', 'x')
+            .Replace('/', 'y');
 }

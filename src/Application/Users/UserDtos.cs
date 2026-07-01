@@ -42,7 +42,14 @@ public sealed class UserCreateRequest
     public string Email { get; set; } = string.Empty;
     public Guid RoleId { get; set; }
     public string? Department { get; set; }
+    public string? PhoneNumber { get; set; }
     public bool IsActive { get; set; } = true;
+}
+
+public sealed class UserCreatedResponse
+{
+    public UserDetailDto User { get; set; } = null!;
+    public string TemporaryPassword { get; set; } = string.Empty;
 }
 
 public sealed class UserUpdateRequest

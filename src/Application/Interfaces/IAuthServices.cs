@@ -52,6 +52,7 @@ public interface IUserService
         int pageSize,
         string? search = null,
         CancellationToken cancellationToken = default);
+    Task<UserCreatedResponse> CreateAsync(UserCreateRequest request, CancellationToken cancellationToken = default);
 }
 
 public interface IAuthService
