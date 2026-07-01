@@ -44,9 +44,16 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnName("department")
             .HasMaxLength(128);
 
+        builder.Property(u => u.PhoneNumber)
+            .HasColumnName("phone_number")
+            .HasMaxLength(32);
+
         builder.Property(u => u.IsActive)
             .HasColumnName("is_active")
             .HasDefaultValue(true);
+
+        builder.Property(u => u.LastLoginAt)
+            .HasColumnName("last_login_at");
 
         builder.Property(u => u.CreatedAt)
             .HasColumnName("created_at");
