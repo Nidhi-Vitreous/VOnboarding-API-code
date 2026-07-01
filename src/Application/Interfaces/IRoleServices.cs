@@ -7,16 +7,19 @@ public interface IRoleRepository
 {
     Task<IReadOnlyList<Role>> GetAllRolesWithPermissionsAsync(CancellationToken cancellationToken = default);
     Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Role?> GetRoleByNameAsync(string name, CancellationToken cancellationToken = default);
     Task<Role> CreateRoleAsync(Role role, IReadOnlyList<Guid> permissionIds, CancellationToken cancellationToken = default);
     Task<Role?> UpdateRoleAsync(
         Guid id,
         string name,
         string roleType,
+        Guid departmentId,
         IReadOnlyList<Guid> permissionIds,
         CancellationToken cancellationToken = default);
     Task<bool> DeleteRoleAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> RoleNameExistsAsync(string name, Guid? excludeRoleId = null, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Permission>> GetPermissionsByIdsAsync(IReadOnlyList<Guid> permissionIds, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Permission>> GetPermissionsBySystemNamesAsync(IReadOnlyList<string> systemNames, CancellationToken cancellationToken = default);
     Task<int> GetNextSortOrderAsync(CancellationToken cancellationToken = default);
 }
 

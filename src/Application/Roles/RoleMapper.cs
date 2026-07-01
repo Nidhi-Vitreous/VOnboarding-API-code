@@ -8,7 +8,8 @@ internal static class RoleMapper
     {
         Id = role.Id,
         RoleName = role.Name,
-        RoleType = role.RoleType,
+        DepartmentId = role.DepartmentId,
+        DepartmentName = role.Department?.Name ?? string.Empty,
         SortOrder = role.SortOrder,
         IsSystemRole = role.IsSystemRole,
         IsActive = role.IsActive,
@@ -18,7 +19,13 @@ internal static class RoleMapper
         Permissions = role.RolePermissions
             .Select(rp => rp.Permission)
             .OrderBy(p => p.Name)
-            .Select(p => new PermissionDto { Id = p.Id, Name = p.Name })
+            .Select(p => new PermissionDto
+            {
+                Id = p.Id,
+                SystemName = p.SystemName,
+                Name = p.Name,
+                Description = p.Description,
+            })
             .ToList(),
     };
 }

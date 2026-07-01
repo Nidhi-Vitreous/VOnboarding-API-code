@@ -9,18 +9,31 @@ public sealed class RoleRepository(ApplicationDbContext dbContext) : IRoleReposi
     public async Task<IReadOnlyList<Role>> GetAllRolesWithPermissionsAsync(CancellationToken cancellationToken = default) =>
         await dbContext.Roles
             .AsNoTracking()
+            .Include(r => r.Department)
             .Include(r => r.RolePermissions)
             .ThenInclude(rp => rp.Permission)
             .OrderBy(r => r.SortOrder)
             .ThenBy(r => r.Name)
             .ToListAsync(cancellationToken);
 
-    public async Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-        await dbContext.Roles
+    public Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        dbContext.Roles
             .AsNoTracking()
+            .Include(r => r.Department)
             .Include(r => r.RolePermissions)
             .ThenInclude(rp => rp.Permission)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+
+    public Task<Role?> GetRoleByNameAsync(string name, CancellationToken cancellationToken = default)
+    {
+        var normalizedName = name.Trim().ToLowerInvariant();
+        return dbContext.Roles
+            .AsNoTracking()
+            .Include(r => r.Department)
+            .Include(r => r.RolePermissions)
+            .ThenInclude(rp => rp.Permission)
+            .FirstOrDefaultAsync(r => r.Name.ToLower() == normalizedName, cancellationToken);
+    }
 
     public async Task<Role> CreateRoleAsync(
         Role role,
@@ -31,13 +44,10 @@ public sealed class RoleRepository(ApplicationDbContext dbContext) : IRoleReposi
 
         dbContext.Roles.Add(role);
 
-        foreach (var permissionId in permissionIds.Distinct())
+        var permissions = await GetPermissionsByIdsAsync(permissionIds, cancellationToken);
+        foreach (var permission in permissions)
         {
-            dbContext.RolePermissions.Add(new RolePermission
-            {
-                RoleId = role.Id,
-                PermissionId = permissionId,
-            });
+            dbContext.RolePermissions.Add(CreateRolePermission(role, permission));
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -50,6 +60,7 @@ public sealed class RoleRepository(ApplicationDbContext dbContext) : IRoleReposi
         Guid id,
         string name,
         string roleType,
+        Guid departmentId,
         IReadOnlyList<Guid> permissionIds,
         CancellationToken cancellationToken = default)
     {
@@ -66,17 +77,15 @@ public sealed class RoleRepository(ApplicationDbContext dbContext) : IRoleReposi
 
         role.Name = name;
         role.RoleType = roleType;
+        role.DepartmentId = departmentId;
         role.UpdatedAt = DateTime.UtcNow;
 
         dbContext.RolePermissions.RemoveRange(role.RolePermissions);
 
-        foreach (var permissionId in permissionIds.Distinct())
+        var permissions = await GetPermissionsByIdsAsync(permissionIds, cancellationToken);
+        foreach (var permission in permissions)
         {
-            dbContext.RolePermissions.Add(new RolePermission
-            {
-                RoleId = role.Id,
-                PermissionId = permissionId,
-            });
+            dbContext.RolePermissions.Add(CreateRolePermission(role, permission));
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -131,6 +140,27 @@ public sealed class RoleRepository(ApplicationDbContext dbContext) : IRoleReposi
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Permission>> GetPermissionsBySystemNamesAsync(
+        IReadOnlyList<string> systemNames,
+        CancellationToken cancellationToken = default)
+    {
+        if (systemNames.Count == 0)
+        {
+            return [];
+        }
+
+        var normalizedNames = systemNames
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name.Trim().ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        return await dbContext.Permissions
+            .AsNoTracking()
+            .Where(p => normalizedNames.Contains(p.SystemName.ToLower()))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<int> GetNextSortOrderAsync(CancellationToken cancellationToken = default)
     {
         var maxSortOrder = await dbContext.Roles.AsNoTracking()
@@ -139,4 +169,12 @@ public sealed class RoleRepository(ApplicationDbContext dbContext) : IRoleReposi
 
         return (maxSortOrder ?? 0) + 1;
     }
+
+    private static RolePermission CreateRolePermission(Role role, Permission permission) => new()
+    {
+        RoleId = role.Id,
+        PermissionId = permission.Id,
+        RoleName = role.Name,
+        PermissionName = permission.Name,
+    };
 }

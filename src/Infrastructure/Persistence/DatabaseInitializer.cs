@@ -19,6 +19,7 @@ public static class DatabaseInitializer
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<ApplicationDbContext>>();
 
         await dbContext.Database.MigrateAsync(cancellationToken);
+        await SeedDepartmentsAsync(dbContext, logger, cancellationToken);
         await SeedPermissionsAsync(dbContext, logger, cancellationToken);
 
         var environmentName = configuration["ASPNETCORE_ENVIRONMENT"];
@@ -59,7 +60,7 @@ public static class DatabaseInitializer
             FullName = "System Administrator",
             PasswordHash = passwordHasher.Hash(adminPassword),
             Role = "Admin",
-            Department = "Administration",
+            Department = "Admin",
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now,
@@ -71,27 +72,79 @@ public static class DatabaseInitializer
         logger.LogInformation("Seeded default admin user (username: {Username}).", adminUsername);
     }
 
+    private static async Task SeedDepartmentsAsync(
+        ApplicationDbContext dbContext,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var existingDepartments = await dbContext.Departments.ToListAsync(cancellationToken);
+        var departmentsById = existingDepartments.ToDictionary(d => d.Id);
+        var departmentsByName = existingDepartments.ToDictionary(d => d.Name, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var seedDepartment in DepartmentSeedData.DefaultDepartments)
+        {
+            if (departmentsById.ContainsKey(seedDepartment.Id)
+                || departmentsByName.ContainsKey(seedDepartment.Name))
+            {
+                continue;
+            }
+
+            dbContext.Departments.Add(new Department
+            {
+                Id = seedDepartment.Id,
+                Name = seedDepartment.Name,
+            });
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Synchronized {Count} department definitions.", DepartmentSeedData.DefaultDepartments.Length);
+    }
+
     private static async Task SeedPermissionsAsync(
         ApplicationDbContext dbContext,
         ILogger logger,
         CancellationToken cancellationToken)
     {
-        if (await dbContext.Permissions.AnyAsync(cancellationToken))
-        {
-            return;
-        }
+        var existingPermissions = await dbContext.Permissions.ToListAsync(cancellationToken);
+        var permissionsById = existingPermissions.ToDictionary(p => p.Id);
+        var permissionsBySystemName = existingPermissions.ToDictionary(p => p.SystemName, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (permissionId, permissionName) in PermissionSeedData.DefaultPermissions)
+        foreach (var seedPermission in PermissionSeedData.DefaultPermissions)
         {
+            if (permissionsById.TryGetValue(seedPermission.Id, out var existingById))
+            {
+                SyncPermission(existingById, seedPermission);
+                continue;
+            }
+
+            if (permissionsBySystemName.TryGetValue(seedPermission.SystemName, out var existingBySystemName))
+            {
+                SyncPermission(existingBySystemName, seedPermission);
+                continue;
+            }
+
             dbContext.Permissions.Add(new Permission
             {
-                Id = permissionId,
-                Name = permissionName,
+                Id = seedPermission.Id,
+                SystemName = seedPermission.SystemName,
+                Name = seedPermission.Name,
+                Description = seedPermission.Description,
             });
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Seeded {Count} default permissions.", PermissionSeedData.DefaultPermissions.Length);
+        logger.LogInformation("Synchronized {Count} permission definitions.", PermissionSeedData.DefaultPermissions.Length);
+    }
+
+    private static void SyncPermission(Permission permission, PermissionSeedData.PermissionSeedEntry seedPermission)
+    {
+        if (string.IsNullOrWhiteSpace(permission.SystemName))
+        {
+            permission.SystemName = seedPermission.SystemName;
+        }
+
+        permission.Name = seedPermission.Name;
+        permission.Description = seedPermission.Description;
     }
 
     private static async Task SeedRolesAsync(
@@ -104,19 +157,33 @@ public static class DatabaseInitializer
             return;
         }
 
-        var permissionsByName = await dbContext.Permissions
+        var permissionsBySystemName = await dbContext.Permissions
             .AsNoTracking()
-            .ToDictionaryAsync(p => p.Name, p => p.Id, cancellationToken);
+            .ToDictionaryAsync(p => p.SystemName, p => p, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+        var departmentsByName = await dbContext.Departments
+            .AsNoTracking()
+            .ToDictionaryAsync(d => d.Name, d => d.Id, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         var now = DateTime.UtcNow;
 
         foreach (var seedRole in RoleSeedData.DefaultRoles)
         {
+            if (!departmentsByName.TryGetValue(seedRole.DepartmentName, out var departmentId))
+            {
+                logger.LogWarning(
+                    "Skipping role '{RoleName}' because department '{DepartmentName}' was not found.",
+                    seedRole.Name,
+                    seedRole.DepartmentName);
+                continue;
+            }
+
             var role = new Role
             {
                 Id = Guid.NewGuid(),
                 Name = seedRole.Name,
-                RoleType = seedRole.RoleType,
+                RoleType = seedRole.DepartmentName,
+                DepartmentId = departmentId,
                 SortOrder = seedRole.SortOrder,
                 IsSystemRole = seedRole.IsSystemRole,
                 IsActive = true,
@@ -126,19 +193,23 @@ public static class DatabaseInitializer
 
             dbContext.Roles.Add(role);
 
-            foreach (var permissionName in seedRole.PermissionNames.Distinct())
+            foreach (var permissionSystemName in seedRole.PermissionNames.Distinct())
             {
-                if (!permissionsByName.TryGetValue(permissionName, out var permissionId))
+                if (!permissionsBySystemName.TryGetValue(permissionSystemName, out var permission))
                 {
-                    logger.LogWarning("Skipping unknown permission '{PermissionName}' while seeding role '{RoleName}'.",
-                        permissionName, seedRole.Name);
+                    logger.LogWarning(
+                        "Skipping unknown permission '{PermissionSystemName}' while seeding role '{RoleName}'.",
+                        permissionSystemName,
+                        seedRole.Name);
                     continue;
                 }
 
                 dbContext.RolePermissions.Add(new RolePermission
                 {
                     RoleId = role.Id,
-                    PermissionId = permissionId,
+                    PermissionId = permission.Id,
+                    RoleName = role.Name,
+                    PermissionName = permission.Name,
                 });
             }
         }
