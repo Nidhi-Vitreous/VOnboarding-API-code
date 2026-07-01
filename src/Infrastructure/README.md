@@ -4,9 +4,8 @@ Technical implementations of Application interfaces.
 
 | Folder | Purpose |
 |--------|---------|
-| `Persistence/` | EF Core DbContext, configurations, migrations |
-| `Repositories/` | Data access implementations |
-| `Integrations/` | External systems (NetSuite, email, etc.) |
-| `Services/` | Cross-cutting infra (audit writer, clock, etc.) |
+| `Persistence/` | EF Core DbContext, configurations, migrations, repositories |
+| `Security/` | Password hashing and JWT token services |
+| `Identity/` | ASP.NET Core identity integration helpers |
 
 PostgreSQL 16 via Npgsql EF Core provider.
