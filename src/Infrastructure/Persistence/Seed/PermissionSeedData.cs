@@ -1,20 +1,58 @@
 namespace Vitreous.Onboarding.Infrastructure.Persistence.Seed;
 
-/// <summary>
-/// Default permissions seeded into the database (not used in business logic).
-/// </summary>
 internal static class PermissionSeedData
 {
-    internal static readonly (Guid Id, string Name)[] DefaultPermissions =
+    internal sealed record PermissionSeedEntry(Guid Id, string SystemName, string Name, string Description);
+
+    internal static readonly PermissionSeedEntry[] DefaultPermissions =
     [
-        (Guid.Parse("a1000001-0000-4000-8000-000000000001"), "users.read"),
-        (Guid.Parse("a1000001-0000-4000-8000-000000000002"), "users.create"),
-        (Guid.Parse("a1000001-0000-4000-8000-000000000003"), "users.update"),
-        (Guid.Parse("a1000001-0000-4000-8000-000000000004"), "users.delete"),
-        (Guid.Parse("a1000001-0000-4000-8000-000000000005"), "roles.read"),
-        (Guid.Parse("a1000001-0000-4000-8000-000000000006"), "roles.create"),
-        (Guid.Parse("a1000001-0000-4000-8000-000000000007"), "roles.update"),
-        (Guid.Parse("a1000001-0000-4000-8000-000000000008"), "roles.delete"),
-        (Guid.Parse("a1000001-0000-4000-8000-000000000009"), "dashboard.view"),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000001"), "users.read", "Read users",
+            "Users with this permission can view user records."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000002"), "users.create", "Create users",
+            "Users with this permission can create new user accounts."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000003"), "users.update", "Update users",
+            "Users with this permission can update existing user records."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000004"), "users.delete", "Delete users",
+            "Users with this permission can delete user accounts."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000005"), "roles.read", "Read roles",
+            "Users with this permission can view role definitions."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000006"), "roles.create", "Create roles",
+            "Users with this permission can create new roles."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000007"), "roles.update", "Update roles",
+            "Users with this permission can update existing roles."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000008"), "roles.delete", "Delete roles",
+            "Users with this permission can delete roles."),
+        new(Guid.Parse("a1000001-0000-4000-8000-00000000001b"), "merchant.read", "Read merchants",
+            "Users with this permission can view merchant records."),
+        new(Guid.Parse("a1000001-0000-4000-8000-00000000001c"), "merchant.create", "Create merchants",
+            "Users with this permission can create merchant records."),
+        new(Guid.Parse("a1000001-0000-4000-8000-00000000001d"), "merchant.update", "Update merchants",
+            "Users with this permission can update merchant records."),
+        new(Guid.Parse("a1000001-0000-4000-8000-00000000001e"), "merchant.delete", "Delete merchants",
+            "Users with this permission can delete merchant records."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000009"), "dashboard.view", "View dashboard",
+            "Users with this permission can access the dashboard."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000010"), "onboarding.read", "Read onboarding",
+            "Users with this permission can view onboarding requests."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000011"), "onboarding.create", "Create onboarding",
+            "Users with this permission can create onboarding requests."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000012"), "onboarding.refile", "Refile onboarding",
+            "Users with this permission can refile onboarding requests."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000013"), "onboarding.approve", "Approve onboarding",
+            "Users with this permission can approve onboarding requests."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000014"), "onboarding.reject", "Reject onboarding",
+            "Users with this permission can reject onboarding requests."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000015"), "onboarding.hold", "Hold onboarding",
+            "Users with this permission can place onboarding requests on hold."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000016"), "onboarding.resume", "Resume onboarding",
+            "Users with this permission can resume onboarding requests from hold."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000017"), "onboarding.block", "Block onboarding",
+            "Users with this permission can block onboarding requests."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000018"), "onboarding.submit", "Submit onboarding",
+            "Users with this permission can submit onboarding requests."),
+        new(Guid.Parse("a1000001-0000-4000-8000-000000000019"), "onboarding.resolve", "Resolve onboarding",
+            "Users with this permission can resolve onboarding requests."),
+        new(Guid.Parse("a1000001-0000-4000-8000-00000000001a"), "onboarding.block.initiate", "Initiate onboarding block",
+            "Users with this permission can initiate a block on onboarding requests."),
     ];
 }

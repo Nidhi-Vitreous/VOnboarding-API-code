@@ -61,7 +61,7 @@ public static class DependencyInjection
                 };
             });
 
-        services.AddAuthorization();
+        services.AddOnboardingAuthorization();
         services.AddSwaggerDocumentation();
 
         return services;

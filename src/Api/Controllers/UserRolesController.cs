@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Vitreous.Onboarding.Api.Authorization;
+using Vitreous.Onboarding.Application.Authorization;
 using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Roles;
@@ -8,10 +9,10 @@ namespace Vitreous.Onboarding.Api.Controllers;
 
 [ApiController]
 [Route("userRoles")]
-[Authorize]
 public sealed class UserRolesController(IRoleService roleService) : ControllerBase
 {
     [HttpGet]
+    [RequireSystemPermission(PermissionSystemNames.RolesRead)]
     [ProducesResponseType(typeof(RoleListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
@@ -19,6 +20,7 @@ public sealed class UserRolesController(IRoleService roleService) : ControllerBa
         Ok(await roleService.GetAllAsync(cancellationToken));
 
     [HttpGet("{id:guid}")]
+    [RequireSystemPermission(PermissionSystemNames.RolesRead)]
     [ProducesResponseType(typeof(RoleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
@@ -32,6 +34,7 @@ public sealed class UserRolesController(IRoleService roleService) : ControllerBa
     }
 
     [HttpPost]
+    [RequireSystemPermission(PermissionSystemNames.RolesCreate)]
     [ProducesResponseType(typeof(RoleDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
@@ -43,6 +46,7 @@ public sealed class UserRolesController(IRoleService roleService) : ControllerBa
     }
 
     [HttpPut("{id:guid}")]
+    [RequireSystemPermission(PermissionSystemNames.RolesUpdate)]
     [ProducesResponseType(typeof(RoleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
@@ -60,6 +64,7 @@ public sealed class UserRolesController(IRoleService roleService) : ControllerBa
     }
 
     [HttpDelete("{id:guid}")]
+    [RequireSystemPermission(PermissionSystemNames.RolesDelete)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]

@@ -4,7 +4,10 @@ using Vitreous.Onboarding.Domain.Entities;
 
 namespace Vitreous.Onboarding.Application.Roles;
 
-public sealed class RoleService(IRoleRepository roleRepository, IUserRepository userRepository) : IRoleService
+public sealed class RoleService(
+    IRoleRepository roleRepository,
+    IUserRepository userRepository,
+    IDepartmentRepository departmentRepository) : IRoleService
 {
     public async Task<RoleListResponse> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -35,14 +38,23 @@ public sealed class RoleService(IRoleRepository roleRepository, IUserRepository 
 
     public async Task<RoleDto> CreateAsync(RoleCreateDto request, CancellationToken cancellationToken = default)
     {
-        RoleValidation.ValidateRequest(request.RoleName, request.PermissionIds);
+        RoleValidation.ValidateRequest(request.RoleName, request.DepartmentId, request.PermissionIds);
 
         if (await roleRepository.RoleNameExistsAsync(request.RoleName, cancellationToken: cancellationToken))
         {
             throw new BusinessRuleException(RoleMessages.NameMustBeUnique, RoleMessages.DuplicateNameDetail);
         }
 
-        await RoleValidation.ValidatePermissionsExistAsync(roleRepository, request.PermissionIds, cancellationToken);
+        var department = await RoleValidation.ValidateDepartmentExistsAsync(
+            departmentRepository,
+            request.DepartmentId,
+            cancellationToken);
+
+        await RoleValidation.ValidateRolePermissionsAsync(
+            roleRepository,
+            department.Name,
+            request.PermissionIds,
+            cancellationToken);
 
         var now = DateTime.UtcNow;
         var roleName = request.RoleName.Trim();
@@ -50,7 +62,8 @@ public sealed class RoleService(IRoleRepository roleRepository, IUserRepository 
         {
             Id = Guid.NewGuid(),
             Name = roleName,
-            RoleType = string.IsNullOrWhiteSpace(request.RoleType) ? roleName : request.RoleType.Trim(),
+            RoleType = department.Name,
+            DepartmentId = department.Id,
             SortOrder = await roleRepository.GetNextSortOrderAsync(cancellationToken),
             IsSystemRole = false,
             IsActive = true,
@@ -67,11 +80,17 @@ public sealed class RoleService(IRoleRepository roleRepository, IUserRepository 
         RoleUpdateDto request,
         CancellationToken cancellationToken = default)
     {
-        RoleValidation.ValidateRequest(request.RoleName, request.PermissionIds);
+        RoleValidation.ValidateRequest(request.RoleName, request.DepartmentId, request.PermissionIds);
 
-        if (await roleRepository.GetRoleByIdAsync(id, cancellationToken) is null)
+        var existingRole = await roleRepository.GetRoleByIdAsync(id, cancellationToken);
+        if (existingRole is null)
         {
             return null;
+        }
+
+        if (existingRole.IsSystemRole)
+        {
+            throw new BusinessRuleException(RoleMessages.CannotModify, RoleMessages.SystemRoleCannotBeModified);
         }
 
         if (await roleRepository.RoleNameExistsAsync(request.RoleName, id, cancellationToken))
@@ -79,14 +98,23 @@ public sealed class RoleService(IRoleRepository roleRepository, IUserRepository 
             throw new BusinessRuleException(RoleMessages.NameMustBeUnique, RoleMessages.DuplicateNameDetail);
         }
 
-        await RoleValidation.ValidatePermissionsExistAsync(roleRepository, request.PermissionIds, cancellationToken);
+        var department = await RoleValidation.ValidateDepartmentExistsAsync(
+            departmentRepository,
+            request.DepartmentId,
+            cancellationToken);
+
+        await RoleValidation.ValidateRolePermissionsAsync(
+            roleRepository,
+            department.Name,
+            request.PermissionIds,
+            cancellationToken);
 
         var roleName = request.RoleName.Trim();
-        var roleType = string.IsNullOrWhiteSpace(request.RoleType) ? roleName : request.RoleType.Trim();
         var updated = await roleRepository.UpdateRoleAsync(
             id,
             roleName,
-            roleType,
+            department.Name,
+            department.Id,
             request.PermissionIds,
             cancellationToken);
 
