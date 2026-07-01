@@ -101,6 +101,49 @@ public sealed class UserService(
         };
     }
 
+    public async Task<UserDetailDto?> UpdateAsync(
+        Guid id,
+        UserUpdateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
+        if (request.RoleId.HasValue)
+        {
+            var role = await roleRepository.GetRoleByIdAsync(request.RoleId.Value, cancellationToken);
+            if (role is null)
+            {
+                throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleNotFound);
+            }
+
+            if (!role.IsActive)
+            {
+                throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleInactive);
+            }
+
+            user.Role = role.Name;
+        }
+
+        if (request.Department is not null)
+        {
+            user.Department = request.Department.Trim();
+        }
+
+        if (request.PhoneNumber is not null)
+        {
+            user.PhoneNumber = request.PhoneNumber.Trim();
+        }
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await userRepository.UpdateAsync(user, cancellationToken);
+
+        return MapToDetail(user);
+    }
+
     internal static UserSummaryDto MapToSummary(User user) => new()
     {
         Id = user.Id,
