@@ -56,4 +56,22 @@ public sealed class UsersController(IUserService userService) : ControllerBase
         var user = await userService.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = user.User.Id }, user);
     }
+
+    [HttpPut("{id:guid}")]
+    [RequireSystemPermission(PermissionSystemNames.UsersUpdate)]
+    [ProducesResponseType(typeof(UserDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UserUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await userService.UpdateAsync(id, request, cancellationToken);
+        return user is null
+            ? NotFound(new ErrorResponse { Message = "User not found." })
+            : Ok(user);
+    }
 }

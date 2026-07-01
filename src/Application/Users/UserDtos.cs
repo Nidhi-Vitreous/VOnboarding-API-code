@@ -56,7 +56,7 @@ public sealed class UserUpdateRequest
 {
     public Guid? RoleId { get; set; }
     public string? Department { get; set; }
-    public bool? IsActive { get; set; }
+    public string? PhoneNumber { get; set; }
 }
 
 public sealed class UserStatusUpdateRequest
