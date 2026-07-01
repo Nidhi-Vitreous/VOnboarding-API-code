@@ -52,7 +52,9 @@ public sealed class UserService(IUserRepository userRepository) : IUserService
         Email = user.Email,
         Role = user.Role,
         Department = user.Department,
+        PhoneNumber = user.PhoneNumber,
         IsActive = user.IsActive,
+        LastLoginAt = user.LastLoginAt,
     };
 
     internal static UserDetailDto MapToDetail(User user) => new()
@@ -62,7 +64,9 @@ public sealed class UserService(IUserRepository userRepository) : IUserService
         Email = user.Email,
         Role = user.Role,
         Department = user.Department,
+        PhoneNumber = user.PhoneNumber,
         IsActive = user.IsActive,
+        LastLoginAt = user.LastLoginAt,
         CreatedAt = user.CreatedAt,
         UpdatedAt = user.UpdatedAt,
     };

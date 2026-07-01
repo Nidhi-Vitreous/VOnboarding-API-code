@@ -36,6 +36,9 @@ public sealed class AuthService(
             return null;
         }
 
+        user.LastLoginAt = DateTime.UtcNow;
+        await userRepository.UpdateAsync(user, cancellationToken);
+
         return await CreateAuthResponseAsync(user, cancellationToken);
     }
 
