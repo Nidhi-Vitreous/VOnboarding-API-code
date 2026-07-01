@@ -16,9 +16,22 @@ public sealed class UserDetailDto : UserSummaryDto
     public DateTime UpdatedAt { get; set; }
 }
 
+public static class UserPaging
+{
+    public const int DefaultPage = 1;
+    public const int DefaultPageSize = 10;
+    public const int MinPage = 1;
+    public const int MinPageSize = 1;
+    public const int MaxPageSize = 100;
+}
+
 public sealed class UserListResponse
 {
     public IReadOnlyList<UserSummaryDto> Data { get; set; } = [];
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalCount { get; set; }
+    public int TotalPages { get; set; }
 }
 
 public sealed class UserCreateRequest

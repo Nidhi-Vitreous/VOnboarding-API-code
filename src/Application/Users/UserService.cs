@@ -23,12 +23,25 @@ public sealed class UserService(IUserRepository userRepository) : IUserService
         return user is null ? null : MapToDetail(user);
     }
 
-    public async Task<UserListResponse> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<UserListResponse> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        var users = await userRepository.GetAllAsync(cancellationToken);
+        page = page < UserPaging.MinPage ? UserPaging.DefaultPage : page;
+        pageSize = Math.Clamp(pageSize, UserPaging.MinPageSize, UserPaging.MaxPageSize);
+
+        var (items, totalCount) = await userRepository.GetPageAsync(page, pageSize, search, cancellationToken);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+
         return new UserListResponse
         {
-            Data = users.Select(MapToSummary).ToList(),
+            Data = items.Select(MapToSummary).ToList(),
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = totalPages,
         };
     }
 

@@ -15,9 +15,13 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     [ProducesResponseType(typeof(UserListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAll(
+        [FromQuery(Name = "page")] int page = UserPaging.DefaultPage,
+        [FromQuery(Name = "page_size")] int pageSize = UserPaging.DefaultPageSize,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        var users = await userService.GetAllAsync(cancellationToken);
+        var users = await userService.GetAllAsync(page, pageSize, search, cancellationToken);
         return Ok(users);
     }
 
