@@ -31,7 +31,7 @@ internal static class RoleValidation
         }
     }
 
-    internal static async Task<Domain.Entities.Department> ValidateDepartmentExistsAsync(
+    internal static async Task<Department> ValidateDepartmentExistsAsync(
         IDepartmentRepository departmentRepository,
         Guid departmentId,
         CancellationToken cancellationToken)
