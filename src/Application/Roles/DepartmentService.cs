@@ -27,9 +27,11 @@ public sealed class DepartmentService(IDepartmentRepository departmentRepository
         }
 
         var groupDefinitions = DepartmentRolePermissionCatalog.GetPermissionGroups(department.Name);
-        var allowedSystemNames = DepartmentRolePermissionCatalog.GetAllowedSystemNames(department.Name);
+        var allowedSystemNames = groupDefinitions
+            .SelectMany(group => group.Permissions.Select(permission => permission.SystemName))
+            .ToList();
         var permissions = await roleRepository.GetPermissionsBySystemNamesAsync(
-            allowedSystemNames.ToList(),
+            allowedSystemNames,
             cancellationToken);
         var permissionsBySystemName = permissions.ToDictionary(p => p.SystemName, StringComparer.OrdinalIgnoreCase);
 
