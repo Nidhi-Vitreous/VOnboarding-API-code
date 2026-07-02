@@ -9,6 +9,19 @@ public sealed class UserRepository(ApplicationDbContext dbContext) : IUserReposi
     public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
+    public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
+        dbContext.Users
+            .AsNoTracking()
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .ThenInclude(r => r.Department)
+            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+
+    public Task<User?> GetByIdTrackedWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
+        dbContext.Users
+            .Include(u => u.UserRoles)
+            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+
     public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
         dbContext.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower(), cancellationToken);
@@ -23,7 +36,11 @@ public sealed class UserRepository(ApplicationDbContext dbContext) : IUserReposi
         string? search,
         CancellationToken cancellationToken = default)
     {
-        var query = dbContext.Users.AsNoTracking();
+        IQueryable<User> query = dbContext.Users
+            .AsNoTracking()
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .ThenInclude(r => r.Department);
 
         if (!string.IsNullOrWhiteSpace(search))
         {

@@ -145,6 +145,12 @@ public class RoleServicePagingTests
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 
+        public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<User?> GetByIdTrackedWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
         public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 

@@ -21,7 +21,7 @@ public sealed class UserService(
 
     public async Task<UserDetailDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        var user = await userRepository.GetByIdWithRolesAsync(id, cancellationToken);
         return user is null ? null : MapToDetail(user);
     }
 
@@ -106,42 +106,35 @@ public sealed class UserService(
         UserUpdateRequest request,
         CancellationToken cancellationToken = default)
     {
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        var user = await userRepository.GetByIdTrackedWithRolesAsync(id, cancellationToken);
         if (user is null)
         {
             return null;
         }
 
-        if (request.RoleId.HasValue)
-        {
-            var role = await roleRepository.GetRoleByIdAsync(request.RoleId.Value, cancellationToken);
-            if (role is null)
-            {
-                throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleNotFound);
-            }
+        UserValidation.ValidateUpdateRequest(request);
+        var resolvedRoles = await ResolveRolesAsync(request.RoleIds, cancellationToken);
 
-            if (!role.IsActive)
-            {
-                throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleInactive);
-            }
+        var firstName = request.FirstName.Trim();
+        var lastName = request.LastName.Trim();
 
-            user.Role = role.Name;
-        }
-
-        if (request.Department is not null)
-        {
-            user.Department = request.Department.Trim();
-        }
-
-        if (request.PhoneNumber is not null)
-        {
-            user.PhoneNumber = request.PhoneNumber.Trim();
-        }
-
+        user.FirstName = firstName;
+        user.LastName = lastName;
+        user.FullName = $"{firstName} {lastName}".Trim();
+        user.PhoneNumber = request.PhoneNumber?.Trim();
+        user.OfficeNumber = request.OfficeNumber?.Trim();
+        user.Notes = request.Notes?.Trim();
+        user.TwoFactorEnabled = request.TwoFactorEnabled;
+        user.Role = resolvedRoles[0].Name;
         user.UpdatedAt = DateTime.UtcNow;
+
+        SyncUserRoles(user, resolvedRoles);
+
         await userRepository.UpdateAsync(user, cancellationToken);
 
-        return MapToDetail(user);
+        var detail = MapToDetail(user);
+        detail.Roles = MapToRoleDtos(resolvedRoles);
+        return detail;
     }
 
     public async Task<UserStatusResponse?> SetStatusAsync(
@@ -171,12 +164,15 @@ public sealed class UserService(
     {
         Id = user.Id,
         FullName = user.FullName ?? user.Username,
+        FirstName = user.FirstName,
+        LastName = user.LastName,
         Email = user.Email,
         Role = user.Role,
         Department = user.Department,
         PhoneNumber = user.PhoneNumber,
         IsActive = user.IsActive,
         LastLoginAt = user.LastLoginAt,
+        Roles = MapToRoleDtosFromUserRoles(user),
     };
 
     internal static UserProfileDto MapToProfile(User user) => new()
@@ -193,6 +189,8 @@ public sealed class UserService(
     {
         Id = user.Id,
         FullName = user.FullName ?? user.Username,
+        FirstName = user.FirstName,
+        LastName = user.LastName,
         Email = user.Email,
         Role = user.Role,
         Department = user.Department,
@@ -224,19 +222,54 @@ public sealed class UserService(
 
     private static IReadOnlyList<UserRoleDto> MapToRoleDtosFromUserRoles(User user) =>
         user.UserRoles
+            .Where(userRole => userRole.Role is not null)
             .Select(userRole => new UserRoleDto
             {
-                Id = userRole.RoleId,
-                Name = userRole.Role?.Name ?? string.Empty,
-                DepartmentName = userRole.Role?.Department?.Name ?? string.Empty,
+                Id = userRole.Role!.Id,
+                Name = userRole.Role.Name,
+                DepartmentName = userRole.Role.Department?.Name ?? string.Empty,
             })
             .ToList();
+
+    private static void SyncUserRoles(User user, IReadOnlyList<Role> resolvedRoles)
+    {
+        var targetRoleIds = resolvedRoles.Select(role => role.Id).ToHashSet();
+
+        var rolesToRemove = user.UserRoles
+            .Where(userRole => !targetRoleIds.Contains(userRole.RoleId))
+            .ToList();
+
+        foreach (var userRole in rolesToRemove)
+        {
+            user.UserRoles.Remove(userRole);
+        }
+
+        var existingRoleIds = user.UserRoles.Select(userRole => userRole.RoleId).ToHashSet();
+
+        foreach (var role in resolvedRoles)
+        {
+            if (!existingRoleIds.Contains(role.Id))
+            {
+                user.UserRoles.Add(new UserRole { RoleId = role.Id });
+            }
+        }
+    }
 
     private async Task<IReadOnlyList<Role>> ResolveRolesAsync(
         IReadOnlyList<Guid> roleIds,
         CancellationToken cancellationToken)
     {
-        var uniqueRoleIds = roleIds.Distinct().ToList();
+        var uniqueRoleIds = new List<Guid>();
+        var seenRoleIds = new HashSet<Guid>();
+
+        foreach (var roleId in roleIds)
+        {
+            if (seenRoleIds.Add(roleId))
+            {
+                uniqueRoleIds.Add(roleId);
+            }
+        }
+
         var resolvedRoles = new List<Role>(uniqueRoleIds.Count);
 
         foreach (var roleId in uniqueRoleIds)

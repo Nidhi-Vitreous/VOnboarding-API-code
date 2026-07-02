@@ -4,12 +4,15 @@ public class UserSummaryDto
 {
     public Guid Id { get; set; }
     public string FullName { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
     public string? Email { get; set; }
     public string Role { get; set; } = string.Empty;
     public string? Department { get; set; }
     public string? PhoneNumber { get; set; }
     public bool IsActive { get; set; }
     public DateTime? LastLoginAt { get; set; }
+    public IReadOnlyList<UserRoleDto> Roles { get; set; } = [];
 }
 
 public sealed class UserRoleDto
@@ -23,7 +26,6 @@ public sealed class UserDetailDto : UserSummaryDto
 {
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-    public IReadOnlyList<UserRoleDto> Roles { get; set; } = [];
 }
 
 public sealed class UserProfileDto
@@ -71,9 +73,13 @@ public sealed class UserCreateRequest
 
 public sealed class UserUpdateRequest
 {
-    public Guid? RoleId { get; set; }
-    public string? Department { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
+    public string? OfficeNumber { get; set; }
+    public string? Notes { get; set; }
+    public bool TwoFactorEnabled { get; set; }
+    public List<Guid> RoleIds { get; set; } = [];
 }
 
 public sealed class UserStatusUpdateRequest

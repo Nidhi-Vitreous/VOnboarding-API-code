@@ -66,6 +66,36 @@ internal static partial class UserValidation
         }
     }
 
+    internal static void ValidateUpdateRequest(UserUpdateRequest request)
+    {
+        var errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(request.FirstName))
+        {
+            errors.Add("First name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.LastName))
+        {
+            errors.Add("Last name is required.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.PhoneNumber) && !IsValidPhoneNumber(request.PhoneNumber))
+        {
+            errors.Add("Phone number format is invalid.");
+        }
+
+        if (request.RoleIds is null || request.RoleIds.Count == 0)
+        {
+            errors.Add("At least one role is required.");
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new BusinessRuleException("Validation failed.", errors.ToArray());
+        }
+    }
+
     private static bool IsValidEmail(string email)
     {
         var trimmed = email.Trim();
