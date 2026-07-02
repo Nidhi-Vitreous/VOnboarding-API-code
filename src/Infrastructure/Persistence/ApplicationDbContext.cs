@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<Merchant> Merchants => Set<Merchant>();
     public DbSet<MerchantStatusHistory> MerchantStatusHistory => Set<MerchantStatusHistory>();
     public DbSet<AuditLogEntry> AuditLog => Set<AuditLogEntry>();
@@ -30,6 +31,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.ApplyConfiguration(new RoleConfiguration());
         modelBuilder.ApplyConfiguration(new PermissionConfiguration());
         modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
+        modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
         modelBuilder.ApplyConfiguration(new MerchantConfiguration());
         modelBuilder.ApplyConfiguration(new MerchantStatusHistoryConfiguration());
         modelBuilder.ApplyConfiguration(new AuditLogEntryConfiguration());
