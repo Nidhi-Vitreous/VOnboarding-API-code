@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Vitreous.Onboarding.Api.Authorization;
 using Vitreous.Onboarding.Application.Authorization;
 using Vitreous.Onboarding.Application.Common;
+using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Roles;
 
@@ -16,8 +17,12 @@ public sealed class UserRolesController(IRoleService roleService) : ControllerBa
     [ProducesResponseType(typeof(RoleListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken) =>
-        Ok(await roleService.GetAllAsync(cancellationToken));
+    public async Task<IActionResult> GetAll(
+        [FromQuery(Name = "page")] int page = ListPaging.DefaultPage,
+        [FromQuery(Name = "page_size")] int pageSize = ListPaging.DefaultPageSize,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default) =>
+        Ok(await roleService.GetAllAsync(page, pageSize, search, cancellationToken));
 
     [HttpGet("{id:guid}")]
     [RequireSystemPermission(PermissionSystemNames.RolesRead)]

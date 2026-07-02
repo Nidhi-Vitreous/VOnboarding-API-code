@@ -16,6 +16,39 @@ public sealed class RoleRepository(ApplicationDbContext dbContext) : IRoleReposi
             .ThenBy(r => r.Name)
             .ToListAsync(cancellationToken);
 
+    public async Task<(IReadOnlyList<Role> Items, int TotalCount)> GetPageAsync(
+        int page,
+        int pageSize,
+        string? search,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Roles
+            .AsNoTracking()
+            .Include(r => r.Department)
+            .Include(r => r.RolePermissions)
+            .ThenInclude(rp => rp.Permission)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLowerInvariant();
+            query = query.Where(r =>
+                r.Name.ToLower().Contains(term)
+                || r.Department.Name.ToLower().Contains(term));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderBy(r => r.SortOrder)
+            .ThenBy(r => r.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         dbContext.Roles
             .AsNoTracking()

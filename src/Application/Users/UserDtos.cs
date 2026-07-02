@@ -20,11 +20,11 @@ public sealed class UserDetailDto : UserSummaryDto
 
 public static class UserPaging
 {
-    public const int DefaultPage = 1;
-    public const int DefaultPageSize = 10;
-    public const int MinPage = 1;
-    public const int MinPageSize = 1;
-    public const int MaxPageSize = 100;
+    public const int DefaultPage = Common.ListPaging.DefaultPage;
+    public const int DefaultPageSize = Common.ListPaging.DefaultPageSize;
+    public const int MinPage = Common.ListPaging.MinPage;
+    public const int MinPageSize = Common.ListPaging.MinPageSize;
+    public const int MaxPageSize = Common.ListPaging.MaxPageSize;
 }
 
 public sealed class UserListResponse
