@@ -40,6 +40,25 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnName("full_name")
             .HasMaxLength(256);
 
+        builder.Property(u => u.FirstName)
+            .HasColumnName("first_name")
+            .HasMaxLength(128);
+
+        builder.Property(u => u.LastName)
+            .HasColumnName("last_name")
+            .HasMaxLength(128);
+
+        builder.Property(u => u.OfficeNumber)
+            .HasColumnName("office_number")
+            .HasMaxLength(32);
+
+        builder.Property(u => u.Notes)
+            .HasColumnName("notes");
+
+        builder.Property(u => u.TwoFactorEnabled)
+            .HasColumnName("two_factor_enabled")
+            .HasDefaultValue(false);
+
         builder.Property(u => u.Department)
             .HasColumnName("department")
             .HasMaxLength(128);
