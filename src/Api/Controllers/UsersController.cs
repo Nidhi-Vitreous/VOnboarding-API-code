@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Vitreous.Onboarding.Api.Authorization;
@@ -26,6 +27,23 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     {
         var users = await userService.GetAllAsync(page, pageSize, search, cancellationToken);
         return Ok(users);
+    }
+
+    [HttpGet("me")]
+    [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMe(CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized(new ErrorResponse { Message = "Unauthorized." });
+        }
+
+        var profile = await userService.GetProfileAsync(userId, cancellationToken);
+        return profile is null
+            ? NotFound(new ErrorResponse { Message = "User not found." })
+            : Ok(profile);
     }
 
     [HttpGet("{id:guid}")]
@@ -90,5 +108,13 @@ public sealed class UsersController(IUserService userService) : ControllerBase
         return result is null
             ? NotFound(new ErrorResponse { Message = "User not found." })
             : Ok(result);
+    }
+
+    private bool TryGetCurrentUserId(out Guid userId)
+    {
+        var rawUserId = User.FindFirstValue("userId")
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(rawUserId, out userId);
     }
 }
