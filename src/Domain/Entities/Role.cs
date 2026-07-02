@@ -14,4 +14,5 @@ public class Role
 
     public Department Department { get; set; } = null!;
     public ICollection<RolePermission> RolePermissions { get; set; } = [];
+    public ICollection<UserRole> UserRoles { get; set; } = [];
 }
