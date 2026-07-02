@@ -8,6 +8,11 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string? FullName { get; set; }
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string? OfficeNumber { get; set; }
+    public string? Notes { get; set; }
+    public bool TwoFactorEnabled { get; set; }
     public string? Department { get; set; }
     public string? PhoneNumber { get; set; }
     public bool IsActive { get; set; } = true;
