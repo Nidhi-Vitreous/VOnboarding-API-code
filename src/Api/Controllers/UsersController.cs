@@ -65,14 +65,14 @@ public sealed class UsersController(IUserService userService) : ControllerBase
 
     [HttpPost]
     [RequireSystemPermission(PermissionSystemNames.UsersCreate)]
-    [ProducesResponseType(typeof(UserCreatedResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(UserDetailDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Create([FromBody] UserCreateRequest request, CancellationToken cancellationToken)
     {
         var user = await userService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = user.User.Id }, user);
+        return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
     }
 
     [HttpPut("{id:guid}")]

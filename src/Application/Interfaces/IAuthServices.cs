@@ -53,7 +53,7 @@ public interface IUserService
         int pageSize,
         string? search = null,
         CancellationToken cancellationToken = default);
-    Task<UserCreatedResponse> CreateAsync(UserCreateRequest request, CancellationToken cancellationToken = default);
+    Task<UserDetailDto> CreateAsync(UserCreateRequest request, CancellationToken cancellationToken = default);
     Task<UserDetailDto?> UpdateAsync(Guid id, UserUpdateRequest request, CancellationToken cancellationToken = default);
     Task<UserStatusResponse?> SetStatusAsync(Guid id, UserStatusUpdateRequest request, CancellationToken cancellationToken = default);
 }

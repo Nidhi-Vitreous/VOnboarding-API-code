@@ -7,40 +7,49 @@ namespace Vitreous.Onboarding.UnitTests;
 
 public class UserServiceCreateTests
 {
+    private const string ValidPassword = "Password1!";
+
     [Fact]
-    public async Task CreateAsync_valid_active_role_creates_user_with_hashed_password()
+    public async Task CreateAsync_valid_multi_role_create_writes_user_roles_and_sets_first_role_as_legacy_role()
     {
-        var roleId = Guid.NewGuid();
+        var primaryRoleId = Guid.NewGuid();
+        var secondaryRoleId = Guid.NewGuid();
         var userRepository = new FakeUserRepository();
         var roleRepository = new FakeRoleRepository
         {
-            Role = new Role
+            Roles = new Dictionary<Guid, Role>
             {
-                Id = roleId,
-                Name = "Terminal Operator",
-                IsActive = true,
+                [primaryRoleId] = CreateRole(primaryRoleId, "Terminal Operator", "Operations"),
+                [secondaryRoleId] = CreateRole(secondaryRoleId, "Support", "Customer Success"),
             },
         };
         var passwordHasher = new FakePasswordHasher();
         var sut = CreateSut(userRepository, roleRepository, passwordHasher);
 
-        var result = await sut.CreateAsync(new UserCreateRequest
-        {
-            FullName = "Yash Patel",
-            Email = "yash.patel@example.com",
-            RoleId = roleId,
-        });
+        var result = await sut.CreateAsync(ValidRequest([primaryRoleId, secondaryRoleId]));
 
         Assert.True(userRepository.AddCalled);
         Assert.Equal(1, userRepository.AddCallCount);
         Assert.NotNull(userRepository.LastAddedUser);
         Assert.Equal("Terminal Operator", userRepository.LastAddedUser!.Role);
-        Assert.Equal("Terminal Operator", result.User.Role);
-        Assert.False(string.IsNullOrWhiteSpace(result.TemporaryPassword));
-        Assert.NotEqual(result.TemporaryPassword, userRepository.LastAddedUser.PasswordHash);
-        Assert.Equal($"HASHED::{result.TemporaryPassword}", userRepository.LastAddedUser.PasswordHash);
+        Assert.Equal("Terminal Operator", result.Role);
+        Assert.Equal("Yash Patel", userRepository.LastAddedUser.FullName);
+        Assert.Equal("Yash", userRepository.LastAddedUser.FirstName);
+        Assert.Equal("Patel", userRepository.LastAddedUser.LastName);
+        Assert.Equal(2, userRepository.LastAddedUser.UserRoles.Count);
+        Assert.Contains(
+            userRepository.LastAddedUser.UserRoles,
+            userRole => userRole.RoleId == primaryRoleId);
+        Assert.Contains(
+            userRepository.LastAddedUser.UserRoles,
+            userRole => userRole.RoleId == secondaryRoleId);
+        Assert.Equal(2, result.Roles.Count);
+        Assert.Equal("Terminal Operator", result.Roles[0].Name);
+        Assert.Equal("Operations", result.Roles[0].DepartmentName);
+        Assert.Equal($"HASHED::{ValidPassword}", userRepository.LastAddedUser.PasswordHash);
+        Assert.NotEqual(ValidPassword, userRepository.LastAddedUser.PasswordHash);
         Assert.Null(userRepository.LastAddedUser.LastLoginAt);
-        Assert.Null(result.User.LastLoginAt);
+        Assert.Null(result.LastLoginAt);
     }
 
     [Fact]
@@ -50,16 +59,14 @@ public class UserServiceCreateTests
         var userRepository = new FakeUserRepository();
         var roleRepository = new FakeRoleRepository
         {
-            Role = new Role { Id = roleId, Name = "Support", IsActive = true },
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "Support", "Operations"),
+            },
         };
         var sut = CreateSut(userRepository, roleRepository);
 
-        await sut.CreateAsync(new UserCreateRequest
-        {
-            FullName = "Yash Patel",
-            Email = "yash.patel@example.com",
-            RoleId = roleId,
-        });
+        await sut.CreateAsync(ValidRequest([roleId]));
 
         Assert.Equal("yash.patel", userRepository.LastAddedUser!.Username);
     }
@@ -74,16 +81,14 @@ public class UserServiceCreateTests
         };
         var roleRepository = new FakeRoleRepository
         {
-            Role = new Role { Id = roleId, Name = "Support", IsActive = true },
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "Support", "Operations"),
+            },
         };
         var sut = CreateSut(userRepository, roleRepository);
 
-        await sut.CreateAsync(new UserCreateRequest
-        {
-            FullName = "Yash Patel",
-            Email = "yash.patel@example.com",
-            RoleId = roleId,
-        });
+        await sut.CreateAsync(ValidRequest([roleId]));
 
         Assert.Equal(["yash.patel", "yash.patel1"], userRepository.UsernameChecks);
         Assert.Equal("yash.patel1", userRepository.LastAddedUser!.Username);
@@ -93,16 +98,11 @@ public class UserServiceCreateTests
     public async Task CreateAsync_missing_role_throws_and_does_not_persist()
     {
         var userRepository = new FakeUserRepository();
-        var roleRepository = new FakeRoleRepository { Role = null };
+        var roleRepository = new FakeRoleRepository();
         var sut = CreateSut(userRepository, roleRepository);
 
         var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            sut.CreateAsync(new UserCreateRequest
-            {
-                FullName = "Yash Patel",
-                Email = "yash.patel@example.com",
-                RoleId = Guid.NewGuid(),
-            }));
+            sut.CreateAsync(ValidRequest([Guid.NewGuid()])));
 
         Assert.Equal(UserMessages.InvalidRole, exception.Message);
         Assert.Contains(UserMessages.RoleNotFound, exception.Details ?? []);
@@ -116,27 +116,123 @@ public class UserServiceCreateTests
         var userRepository = new FakeUserRepository();
         var roleRepository = new FakeRoleRepository
         {
-            Role = new Role
+            Roles = new Dictionary<Guid, Role>
             {
-                Id = roleId,
-                Name = "Retired Role",
-                IsActive = false,
+                [roleId] = CreateRole(roleId, "Retired Role", "Operations", isActive: false),
             },
         };
         var sut = CreateSut(userRepository, roleRepository);
 
         var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            sut.CreateAsync(new UserCreateRequest
-            {
-                FullName = "Yash Patel",
-                Email = "yash.patel@example.com",
-                RoleId = roleId,
-            }));
+            sut.CreateAsync(ValidRequest([roleId])));
 
         Assert.Equal(UserMessages.InvalidRole, exception.Message);
         Assert.Contains(UserMessages.RoleInactive, exception.Details ?? []);
         Assert.False(userRepository.AddCalled);
     }
+
+    [Fact]
+    public async Task CreateAsync_password_mismatch_throws_validation_error()
+    {
+        var roleId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository();
+        var roleRepository = new FakeRoleRepository
+        {
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "Support", "Operations"),
+            },
+        };
+        var sut = CreateSut(userRepository, roleRepository);
+
+        var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            sut.CreateAsync(ValidRequest([roleId], request =>
+            {
+                request.ConfirmPassword = "Different1!";
+            })));
+
+        Assert.Equal("Validation failed.", exception.Message);
+        Assert.Contains("Password and confirm password do not match.", exception.Details ?? []);
+        Assert.False(userRepository.AddCalled);
+    }
+
+    [Fact]
+    public async Task CreateAsync_weak_password_throws_validation_error()
+    {
+        var roleId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository();
+        var roleRepository = new FakeRoleRepository
+        {
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "Support", "Operations"),
+            },
+        };
+        var sut = CreateSut(userRepository, roleRepository);
+
+        var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            sut.CreateAsync(ValidRequest([roleId], request =>
+            {
+                request.Password = "weak";
+                request.ConfirmPassword = "weak";
+            })));
+
+        Assert.Equal("Validation failed.", exception.Message);
+        Assert.Contains(
+            "Password must be at least 8 characters and include uppercase, lowercase, digit, and symbol.",
+            exception.Details ?? []);
+        Assert.False(userRepository.AddCalled);
+    }
+
+    [Fact]
+    public async Task CreateAsync_empty_role_ids_throws_validation_error()
+    {
+        var userRepository = new FakeUserRepository();
+        var roleRepository = new FakeRoleRepository();
+        var sut = CreateSut(userRepository, roleRepository);
+
+        var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            sut.CreateAsync(ValidRequest([])));
+
+        Assert.Equal("Validation failed.", exception.Message);
+        Assert.Contains("At least one role is required.", exception.Details ?? []);
+        Assert.False(userRepository.AddCalled);
+    }
+
+    private static UserCreateRequest ValidRequest(
+        IReadOnlyList<Guid> roleIds,
+        Action<UserCreateRequest>? configure = null)
+    {
+        var request = new UserCreateRequest
+        {
+            FirstName = "Yash",
+            LastName = "Patel",
+            Email = "yash.patel@example.com",
+            Password = ValidPassword,
+            ConfirmPassword = ValidPassword,
+            RoleIds = roleIds.ToList(),
+        };
+
+        configure?.Invoke(request);
+        return request;
+    }
+
+    private static Role CreateRole(
+        Guid id,
+        string name,
+        string departmentName,
+        bool isActive = true) =>
+        new()
+        {
+            Id = id,
+            Name = name,
+            IsActive = isActive,
+            Department = new Department
+            {
+                Id = Guid.NewGuid(),
+                Name = departmentName,
+            },
+        };
 
     private static UserService CreateSut(
         FakeUserRepository userRepository,
@@ -199,10 +295,10 @@ public class UserServiceCreateTests
 
     private sealed class FakeRoleRepository : IRoleRepository
     {
-        public Role? Role { get; init; }
+        public Dictionary<Guid, Role> Roles { get; init; } = [];
 
         public Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Role is not null && Role.Id == id ? Role : null);
+            Task.FromResult(Roles.TryGetValue(id, out var role) ? role : null);
 
         public Task<IReadOnlyList<Role>> GetAllRolesWithPermissionsAsync(CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
