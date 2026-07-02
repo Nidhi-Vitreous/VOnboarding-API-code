@@ -74,4 +74,21 @@ public sealed class UsersController(IUserService userService) : ControllerBase
             ? NotFound(new ErrorResponse { Message = "User not found." })
             : Ok(user);
     }
+
+    [HttpPatch("{id:guid}/status")]
+    [RequireSystemPermission(PermissionSystemNames.UsersUpdate)]
+    [ProducesResponseType(typeof(UserStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetStatus(
+        Guid id,
+        [FromBody] UserStatusUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await userService.SetStatusAsync(id, request, cancellationToken);
+        return result is null
+            ? NotFound(new ErrorResponse { Message = "User not found." })
+            : Ok(result);
+    }
 }
