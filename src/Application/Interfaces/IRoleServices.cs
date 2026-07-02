@@ -6,6 +6,11 @@ namespace Vitreous.Onboarding.Application.Interfaces;
 public interface IRoleRepository
 {
     Task<IReadOnlyList<Role>> GetAllRolesWithPermissionsAsync(CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Role> Items, int TotalCount)> GetPageAsync(
+        int page,
+        int pageSize,
+        string? search,
+        CancellationToken cancellationToken = default);
     Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Role?> GetRoleByNameAsync(string name, CancellationToken cancellationToken = default);
     Task<Role> CreateRoleAsync(Role role, IReadOnlyList<Guid> permissionIds, CancellationToken cancellationToken = default);
@@ -25,7 +30,11 @@ public interface IRoleRepository
 
 public interface IRoleService
 {
-    Task<RoleListResponse> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<RoleListResponse> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default);
     Task<RoleDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<RoleDto> CreateAsync(RoleCreateDto request, CancellationToken cancellationToken = default);
     Task<RoleDto?> UpdateAsync(Guid id, RoleUpdateDto request, CancellationToken cancellationToken = default);

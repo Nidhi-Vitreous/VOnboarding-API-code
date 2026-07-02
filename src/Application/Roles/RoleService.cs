@@ -1,4 +1,5 @@
 using Vitreous.Onboarding.Application.Common;
+using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Domain.Entities;
 
@@ -9,9 +10,16 @@ public sealed class RoleService(
     IUserRepository userRepository,
     IDepartmentRepository departmentRepository) : IRoleService
 {
-    public async Task<RoleListResponse> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<RoleListResponse> GetAllAsync(
+        int page,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        var roles = await roleRepository.GetAllRolesWithPermissionsAsync(cancellationToken);
+        page = ListPaging.NormalizePage(page);
+        pageSize = ListPaging.NormalizePageSize(pageSize);
+
+        var (roles, totalCount) = await roleRepository.GetPageAsync(page, pageSize, search, cancellationToken);
         var userCounts = await userRepository.GetActiveUserCountsByRoleNamesAsync(
             roles.Select(r => r.Name),
             cancellationToken);
@@ -21,6 +29,10 @@ public sealed class RoleService(
             Data = roles
                 .Select(r => RoleMapper.ToDto(r, ResolveActiveUserCount(userCounts, r.Name)))
                 .ToList(),
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = ListPaging.ComputeTotalPages(totalCount, pageSize),
         };
     }
 

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Vitreous.Onboarding.Application.Auth;
 using Vitreous.Onboarding.Application.Common;
+using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Domain.Entities;
 
@@ -38,11 +39,10 @@ public sealed class UserService(
         string? search = null,
         CancellationToken cancellationToken = default)
     {
-        page = page < UserPaging.MinPage ? UserPaging.DefaultPage : page;
-        pageSize = Math.Clamp(pageSize, UserPaging.MinPageSize, UserPaging.MaxPageSize);
+        page = ListPaging.NormalizePage(page);
+        pageSize = ListPaging.NormalizePageSize(pageSize);
 
         var (items, totalCount) = await userRepository.GetPageAsync(page, pageSize, search, cancellationToken);
-        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
 
         return new UserListResponse
         {
@@ -50,7 +50,7 @@ public sealed class UserService(
             Page = page,
             PageSize = pageSize,
             TotalCount = totalCount,
-            TotalPages = totalPages,
+            TotalPages = ListPaging.ComputeTotalPages(totalCount, pageSize),
         };
     }
 

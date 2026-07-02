@@ -185,6 +185,13 @@ public class UserServiceUpdateTests
         public Task<IReadOnlyList<Role>> GetAllRolesWithPermissionsAsync(CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 
+        public Task<(IReadOnlyList<Role> Items, int TotalCount)> GetPageAsync(
+            int page,
+            int pageSize,
+            string? search,
+            CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
         public Task<Role?> GetRoleByNameAsync(string name, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 

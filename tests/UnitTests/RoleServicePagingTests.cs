@@ -1,10 +1,10 @@
 using Vitreous.Onboarding.Application.Interfaces;
-using Vitreous.Onboarding.Application.Users;
+using Vitreous.Onboarding.Application.Roles;
 using Vitreous.Onboarding.Domain.Entities;
 
 namespace Vitreous.Onboarding.UnitTests;
 
-public class UserServicePagingTests
+public class RoleServicePagingTests
 {
     [Theory]
     [InlineData(0, 10, 1, 10)]
@@ -18,15 +18,15 @@ public class UserServicePagingTests
         int expectedPage,
         int expectedPageSize)
     {
-        var userRepository = new FakeUserRepository();
-        var sut = CreateSut(userRepository);
+        var roleRepository = new FakeRoleRepository();
+        var sut = CreateSut(roleRepository);
 
         var result = await sut.GetAllAsync(requestedPage, requestedPageSize);
 
         Assert.Equal(expectedPage, result.Page);
         Assert.Equal(expectedPageSize, result.PageSize);
-        Assert.Equal(expectedPage, userRepository.LastPage);
-        Assert.Equal(expectedPageSize, userRepository.LastPageSize);
+        Assert.Equal(expectedPage, roleRepository.LastPage);
+        Assert.Equal(expectedPageSize, roleRepository.LastPageSize);
     }
 
     [Theory]
@@ -37,8 +37,8 @@ public class UserServicePagingTests
         int pageSize,
         int expectedTotalPages)
     {
-        var userRepository = new FakeUserRepository { TotalCount = totalCount };
-        var sut = CreateSut(userRepository);
+        var roleRepository = new FakeRoleRepository { TotalCount = totalCount };
+        var sut = CreateSut(roleRepository);
 
         var result = await sut.GetAllAsync(1, pageSize);
 
@@ -49,26 +49,26 @@ public class UserServicePagingTests
     [Fact]
     public async Task GetAllAsync_passes_search_argument_through_to_repository()
     {
-        var userRepository = new FakeUserRepository();
-        var sut = CreateSut(userRepository);
-        const string search = "  yash  ";
+        var roleRepository = new FakeRoleRepository();
+        var sut = CreateSut(roleRepository);
+        const string search = "  manager  ";
 
         await sut.GetAllAsync(1, 10, search);
 
-        Assert.Equal(search, userRepository.LastSearch);
+        Assert.Equal(search, roleRepository.LastSearch);
     }
 
-    private static UserService CreateSut(FakeUserRepository userRepository) =>
-        new(userRepository, new FakeRoleRepository(), new FakePasswordHasher());
+    private static RoleService CreateSut(FakeRoleRepository roleRepository) =>
+        new(roleRepository, new FakeUserRepository(), new FakeDepartmentRepository());
 
-    private sealed class FakeUserRepository : IUserRepository
+    private sealed class FakeRoleRepository : IRoleRepository
     {
         public int TotalCount { get; init; }
         public int? LastPage { get; private set; }
         public int? LastPageSize { get; private set; }
         public string? LastSearch { get; private set; }
 
-        public Task<(IReadOnlyList<User> Items, int TotalCount)> GetPageAsync(
+        public Task<(IReadOnlyList<Role> Items, int TotalCount)> GetPageAsync(
             int page,
             int pageSize,
             string? search,
@@ -77,53 +77,14 @@ public class UserServicePagingTests
             LastPage = page;
             LastPageSize = pageSize;
             LastSearch = search;
-            return Task.FromResult<(IReadOnlyList<User> Items, int TotalCount)>(
+            return Task.FromResult<(IReadOnlyList<Role> Items, int TotalCount)>(
                 ([], TotalCount));
         }
-
-        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
-
-        public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
-
-        public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
-
-        public Task AddAsync(User user, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
-
-        public Task UpdateAsync(User user, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
-
-        public Task<bool> UsernameExistsAsync(
-            string username,
-            Guid? excludeUserId = null,
-            CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
-
-        public Task<bool> RoleNameInUseAsync(string roleName, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
-
-        public Task<IReadOnlyDictionary<string, int>> GetActiveUserCountsByRoleNamesAsync(
-            IEnumerable<string> roleNames,
-            CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
-    }
-
-    private sealed class FakeRoleRepository : IRoleRepository
-    {
-        public Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
 
         public Task<IReadOnlyList<Role>> GetAllRolesWithPermissionsAsync(CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 
-        public Task<(IReadOnlyList<Role> Items, int TotalCount)> GetPageAsync(
-            int page,
-            int pageSize,
-            string? search,
-            CancellationToken cancellationToken = default) =>
+        public Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 
         public Task<Role?> GetRoleByNameAsync(string name, CancellationToken cancellationToken = default) =>
@@ -167,10 +128,54 @@ public class UserServicePagingTests
             throw new NotImplementedException();
     }
 
-    private sealed class FakePasswordHasher : IPasswordHasher
+    private sealed class FakeUserRepository : IUserRepository
     {
-        public string Hash(string password) => $"HASHED::{password}";
+        public Task<IReadOnlyDictionary<string, int>> GetActiveUserCountsByRoleNamesAsync(
+            IEnumerable<string> roleNames,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
 
-        public bool Verify(string password, string passwordHash) => passwordHash == Hash(password);
+        public Task<(IReadOnlyList<User> Items, int TotalCount)> GetPageAsync(
+            int page,
+            int pageSize,
+            string? search,
+            CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task AddAsync(User user, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task UpdateAsync(User user, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<bool> UsernameExistsAsync(
+            string username,
+            Guid? excludeUserId = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<bool> RoleNameInUseAsync(string roleName, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+    }
+
+    private sealed class FakeDepartmentRepository : IDepartmentRepository
+    {
+        public Task<IReadOnlyList<Department>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<Department?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<Department?> GetByNameAsync(string name, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
     }
 }
