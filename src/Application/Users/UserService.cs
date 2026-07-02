@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using Vitreous.Onboarding.Application.Auth;
 using Vitreous.Onboarding.Application.Common;
-using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Domain.Entities;
 
@@ -15,6 +14,12 @@ public sealed class UserService(
     private const int MaxUsernameLength = 128;
     private const int MaxUsernameDedupAttempts = 10_000;
     private const int TemporaryPasswordByteLength = 24;
+
+    public async Task<UserProfileDto?> GetProfileAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        return user is null ? null : MapToProfile(user);
+    }
 
     public async Task<UserDetailDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -177,6 +182,16 @@ public sealed class UserService(
         PhoneNumber = user.PhoneNumber,
         IsActive = user.IsActive,
         LastLoginAt = user.LastLoginAt,
+    };
+
+    internal static UserProfileDto MapToProfile(User user) => new()
+    {
+        Id = user.Id,
+        FullName = user.FullName ?? user.Username,
+        UserName = user.Username,
+        Email = user.Email,
+        Role = user.Role,
+        PhoneNumber = user.PhoneNumber,
     };
 
     internal static UserDetailDto MapToDetail(User user) => new()

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Vitreous.Onboarding.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Vitreous.Onboarding.Infrastructure.Persistence;
 namespace Vitreous.Onboarding.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260702152923_AddMerchants")]
+    partial class AddMerchants
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -135,11 +138,6 @@ namespace Vitreous.Onboarding.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("phone");
 
-                    b.Property<string>("Product")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("product");
-
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -159,8 +157,6 @@ namespace Vitreous.Onboarding.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("MerchantName");
-
-                    b.HasIndex("Product");
 
                     b.HasIndex("Role");
 

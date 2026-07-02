@@ -45,6 +45,7 @@ public interface IJwtTokenService
 
 public interface IUserService
 {
+    Task<UserProfileDto?> GetProfileAsync(Guid id, CancellationToken cancellationToken = default);
     Task<UserDetailDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<UserDetailDto?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default);
     Task<UserListResponse> GetAllAsync(

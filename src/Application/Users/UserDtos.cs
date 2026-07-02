@@ -18,6 +18,16 @@ public sealed class UserDetailDto : UserSummaryDto
     public DateTime UpdatedAt { get; set; }
 }
 
+public sealed class UserProfileDto
+{
+    public Guid Id { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public string Role { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+}
+
 public static class UserPaging
 {
     public const int DefaultPage = Common.ListPaging.DefaultPage;
