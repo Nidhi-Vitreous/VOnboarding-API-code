@@ -144,6 +144,29 @@ public sealed class UserService(
         return MapToDetail(user);
     }
 
+    public async Task<UserStatusResponse?> SetStatusAsync(
+        Guid id,
+        UserStatusUpdateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
+        user.IsActive = request.IsActive;
+        user.UpdatedAt = DateTime.UtcNow;
+        await userRepository.UpdateAsync(user, cancellationToken);
+
+        return new UserStatusResponse
+        {
+            Id = user.Id,
+            IsActive = user.IsActive,
+            UpdatedAt = user.UpdatedAt,
+        };
+    }
+
     internal static UserSummaryDto MapToSummary(User user) => new()
     {
         Id = user.Id,

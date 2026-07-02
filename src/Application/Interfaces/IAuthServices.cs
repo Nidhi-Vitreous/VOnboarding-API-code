@@ -54,6 +54,7 @@ public interface IUserService
         CancellationToken cancellationToken = default);
     Task<UserCreatedResponse> CreateAsync(UserCreateRequest request, CancellationToken cancellationToken = default);
     Task<UserDetailDto?> UpdateAsync(Guid id, UserUpdateRequest request, CancellationToken cancellationToken = default);
+    Task<UserStatusResponse?> SetStatusAsync(Guid id, UserStatusUpdateRequest request, CancellationToken cancellationToken = default);
 }
 
 public interface IAuthService
