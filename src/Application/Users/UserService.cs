@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Vitreous.Onboarding.Application.Auth;
 using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
@@ -13,7 +12,6 @@ public sealed class UserService(
 {
     private const int MaxUsernameLength = 128;
     private const int MaxUsernameDedupAttempts = 10_000;
-    private const int TemporaryPasswordByteLength = 24;
 
     public async Task<UserProfileDto?> GetProfileAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -59,51 +57,48 @@ public sealed class UserService(
         };
     }
 
-    public async Task<UserCreatedResponse> CreateAsync(
+    public async Task<UserDetailDto> CreateAsync(
         UserCreateRequest request,
         CancellationToken cancellationToken = default)
     {
         UserValidation.ValidateRequest(request);
 
-        var role = await roleRepository.GetRoleByIdAsync(request.RoleId, cancellationToken);
-        if (role is null)
-        {
-            throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleNotFound);
-        }
-
-        if (!role.IsActive)
-        {
-            throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleInactive);
-        }
-
+        var resolvedRoles = await ResolveRolesAsync(request.RoleIds, cancellationToken);
         var email = request.Email.Trim();
+        var firstName = request.FirstName.Trim();
+        var lastName = request.LastName.Trim();
         var username = await ResolveUniqueUsernameAsync(email, cancellationToken);
-        var temporaryPassword = GenerateTemporaryPassword();
         var now = DateTime.UtcNow;
+        var userId = Guid.NewGuid();
 
         var user = new User
         {
-            Id = Guid.NewGuid(),
+            Id = userId,
             Username = username,
             Email = email,
-            PasswordHash = passwordHasher.Hash(temporaryPassword),
-            Role = role.Name,
-            FullName = request.FullName.Trim(),
-            Department = request.Department?.Trim(),
+            PasswordHash = passwordHasher.Hash(request.Password),
+            Role = resolvedRoles[0].Name,
+            FullName = $"{firstName} {lastName}".Trim(),
+            FirstName = firstName,
+            LastName = lastName,
+            OfficeNumber = request.OfficeNumber?.Trim(),
+            Notes = request.Notes?.Trim(),
+            TwoFactorEnabled = request.TwoFactorEnabled,
             PhoneNumber = request.PhoneNumber?.Trim(),
             IsActive = request.IsActive,
             CreatedAt = now,
             UpdatedAt = now,
             LastLoginAt = null,
+            UserRoles = resolvedRoles
+                .Select(role => new UserRole { RoleId = role.Id })
+                .ToList(),
         };
 
         await userRepository.AddAsync(user, cancellationToken);
 
-        return new UserCreatedResponse
-        {
-            User = MapToDetail(user),
-            TemporaryPassword = temporaryPassword,
-        };
+        var detail = MapToDetail(user);
+        detail.Roles = MapToRoleDtos(resolvedRoles);
+        return detail;
     }
 
     public async Task<UserDetailDto?> UpdateAsync(
@@ -206,6 +201,7 @@ public sealed class UserService(
         LastLoginAt = user.LastLoginAt,
         CreatedAt = user.CreatedAt,
         UpdatedAt = user.UpdatedAt,
+        Roles = MapToRoleDtosFromUserRoles(user),
     };
 
     internal static AuthUserDto MapToAuthUser(User user) => new()
@@ -215,6 +211,52 @@ public sealed class UserService(
         Email = user.Email,
         Role = user.Role,
     };
+
+    private static IReadOnlyList<UserRoleDto> MapToRoleDtos(IReadOnlyList<Role> roles) =>
+        roles
+            .Select(role => new UserRoleDto
+            {
+                Id = role.Id,
+                Name = role.Name,
+                DepartmentName = role.Department?.Name ?? string.Empty,
+            })
+            .ToList();
+
+    private static IReadOnlyList<UserRoleDto> MapToRoleDtosFromUserRoles(User user) =>
+        user.UserRoles
+            .Select(userRole => new UserRoleDto
+            {
+                Id = userRole.RoleId,
+                Name = userRole.Role?.Name ?? string.Empty,
+                DepartmentName = userRole.Role?.Department?.Name ?? string.Empty,
+            })
+            .ToList();
+
+    private async Task<IReadOnlyList<Role>> ResolveRolesAsync(
+        IReadOnlyList<Guid> roleIds,
+        CancellationToken cancellationToken)
+    {
+        var uniqueRoleIds = roleIds.Distinct().ToList();
+        var resolvedRoles = new List<Role>(uniqueRoleIds.Count);
+
+        foreach (var roleId in uniqueRoleIds)
+        {
+            var role = await roleRepository.GetRoleByIdAsync(roleId, cancellationToken);
+            if (role is null)
+            {
+                throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleNotFound);
+            }
+
+            if (!role.IsActive)
+            {
+                throw new BusinessRuleException(UserMessages.InvalidRole, UserMessages.RoleInactive);
+            }
+
+            resolvedRoles.Add(role);
+        }
+
+        return resolvedRoles;
+    }
 
     private async Task<string> ResolveUniqueUsernameAsync(string email, CancellationToken cancellationToken)
     {
@@ -239,10 +281,4 @@ public sealed class UserService(
         var basePart = localPart.Length > maxBaseLength ? localPart[..maxBaseLength] : localPart;
         return $"{basePart}{suffixText}";
     }
-
-    private static string GenerateTemporaryPassword() =>
-        Convert.ToBase64String(RandomNumberGenerator.GetBytes(TemporaryPasswordByteLength))
-            .TrimEnd('=')
-            .Replace('+', 'x')
-            .Replace('/', 'y');
 }
