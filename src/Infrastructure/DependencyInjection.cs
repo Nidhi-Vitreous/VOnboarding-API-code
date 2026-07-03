@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Options;
+using Vitreous.Onboarding.Infrastructure.Email;
 using Vitreous.Onboarding.Infrastructure.Identity;
 using Vitreous.Onboarding.Infrastructure.Persistence;
 using Vitreous.Onboarding.Infrastructure.Persistence.Repositories;
@@ -19,6 +20,7 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<PasswordResetOptions>(configuration.GetSection(PasswordResetOptions.SectionName));
+        services.AddEmailServices(configuration);
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString));

@@ -71,7 +71,7 @@ public interface IAuthService
 
 public interface IPasswordResetService
 {
-    Task<ForgotPasswordResponse> RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default);
+    Task<RecoveryResponse> RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default);
 }
 
 public interface IPasswordResetTokenRepository
