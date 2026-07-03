@@ -67,3 +67,16 @@ public interface IAuthService
     Task<AuthResponse?> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default);
     Task LogoutAsync(Guid userId, CancellationToken cancellationToken = default);
 }
+
+public interface IPasswordResetService
+{
+    Task<ForgotPasswordResponse> RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default);
+}
+
+public interface IPasswordResetTokenRepository
+{
+    Task AddAsync(PasswordResetToken token, CancellationToken cancellationToken = default);
+    Task InvalidateActiveForUserAsync(Guid userId, DateTime utcNow, CancellationToken cancellationToken = default);
+    Task<PasswordResetToken?> GetByTokenAsync(string token, CancellationToken cancellationToken = default);
+    Task MarkAsUsedAsync(PasswordResetToken token, DateTime utcNow, CancellationToken cancellationToken = default);
+}

@@ -116,25 +116,4 @@ public sealed class AuthenticateController(IAuthService authService) : Controlle
             Message = "If an account exists for this email, username recovery instructions have been sent.",
         });
     }
-
-    [HttpGet("forgotPassword")]
-    [AllowAnonymous]
-    [ProducesResponseType(typeof(RecoveryResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
-    public IActionResult ForgotPassword([FromQuery] string email)
-    {
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            return BadRequest(new ErrorResponse
-            {
-                Message = "Validation failed",
-                Details = ["email is required."],
-            });
-        }
-
-        return Ok(new RecoveryResponse
-        {
-            Message = "If an account exists for this email, password reset instructions have been sent.",
-        });
-    }
 }
