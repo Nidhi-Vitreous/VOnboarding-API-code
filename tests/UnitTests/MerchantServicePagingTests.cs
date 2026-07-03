@@ -142,6 +142,9 @@ public class MerchantServicePagingTests
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 
+        public Task SaveTrackedChangesAsync(CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
         public Task<bool> UsernameExistsAsync(
             string username,
             Guid? excludeUserId = null,

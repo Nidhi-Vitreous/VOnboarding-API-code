@@ -8,6 +8,27 @@ namespace Vitreous.Onboarding.UnitTests;
 public class UserServiceUpdateTests
 {
     [Fact]
+    public async Task UpdateAsync_persists_via_save_tracked_changes_not_repository_update()
+    {
+        var userId = Guid.NewGuid();
+        var roleId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository { User = CreateUser(userId) };
+        var roleRepository = new FakeRoleRepository
+        {
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "Support", "Ops"),
+            },
+        };
+        var sut = CreateSut(userRepository, roleRepository);
+
+        await sut.UpdateAsync(userId, ValidUpdateRequest([roleId]));
+
+        Assert.True(userRepository.SaveTrackedChangesCalled);
+        Assert.False(userRepository.UpdateCalled);
+    }
+
+    [Fact]
     public async Task UpdateAsync_unknown_id_returns_null_without_persisting()
     {
         var userRepository = new FakeUserRepository();
@@ -16,7 +37,7 @@ public class UserServiceUpdateTests
         var result = await sut.UpdateAsync(Guid.NewGuid(), ValidUpdateRequest([Guid.NewGuid()]));
 
         Assert.Null(result);
-        Assert.False(userRepository.UpdateCalled);
+        Assert.False(userRepository.SaveTrackedChangesCalled);
     }
 
     [Fact]
@@ -46,7 +67,7 @@ public class UserServiceUpdateTests
         var result = await sut.UpdateAsync(userId, ValidUpdateRequest([keepRoleId, addRoleId]));
 
         Assert.NotNull(result);
-        Assert.True(userRepository.UpdateCalled);
+        Assert.True(userRepository.SaveTrackedChangesCalled);
         Assert.Equal(2, userRepository.LastUpdatedUser!.UserRoles.Count);
         Assert.DoesNotContain(userRepository.LastUpdatedUser.UserRoles, userRole => userRole.RoleId == removeRoleId);
         Assert.Contains(userRepository.LastUpdatedUser.UserRoles, userRole => userRole.RoleId == keepRoleId);
@@ -70,7 +91,7 @@ public class UserServiceUpdateTests
 
         Assert.Equal(UserMessages.InvalidRole, exception.Message);
         Assert.Contains(UserMessages.RoleNotFound, exception.Details ?? []);
-        Assert.False(userRepository.UpdateCalled);
+        Assert.False(userRepository.SaveTrackedChangesCalled);
     }
 
     [Fact]
@@ -93,7 +114,7 @@ public class UserServiceUpdateTests
 
         Assert.Equal(UserMessages.InvalidRole, exception.Message);
         Assert.Contains(UserMessages.RoleInactive, exception.Details ?? []);
-        Assert.False(userRepository.UpdateCalled);
+        Assert.False(userRepository.SaveTrackedChangesCalled);
     }
 
     [Fact]
@@ -108,7 +129,7 @@ public class UserServiceUpdateTests
 
         Assert.Equal("Validation failed.", exception.Message);
         Assert.Contains("At least one role is required.", exception.Details ?? []);
-        Assert.False(userRepository.UpdateCalled);
+        Assert.False(userRepository.SaveTrackedChangesCalled);
     }
 
     [Fact]
@@ -144,7 +165,7 @@ public class UserServiceUpdateTests
         Assert.Equal("+1 (555) 123-4567", result.PhoneNumber);
         Assert.Equal("Terminal Operator", result.Role);
         Assert.Equal("Operations", result.Roles[0].DepartmentName);
-        Assert.True(userRepository.UpdateCalled);
+        Assert.True(userRepository.SaveTrackedChangesCalled);
         Assert.Equal("Yash", userRepository.LastUpdatedUser!.FirstName);
         Assert.Equal("Patel", userRepository.LastUpdatedUser.LastName);
         Assert.Equal("Yash Patel", userRepository.LastUpdatedUser.FullName);
@@ -270,6 +291,7 @@ public class UserServiceUpdateTests
         public IReadOnlyList<User> PageItems { get; init; } = [];
         public int TotalCount { get; init; }
         public bool UpdateCalled { get; private set; }
+        public bool SaveTrackedChangesCalled { get; private set; }
         public User? LastUpdatedUser { get; private set; }
 
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
@@ -285,6 +307,13 @@ public class UserServiceUpdateTests
         {
             UpdateCalled = true;
             LastUpdatedUser = user;
+            return Task.CompletedTask;
+        }
+
+        public Task SaveTrackedChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SaveTrackedChangesCalled = true;
+            LastUpdatedUser = User;
             return Task.CompletedTask;
         }
 
