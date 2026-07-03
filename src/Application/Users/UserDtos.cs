@@ -24,6 +24,9 @@ public sealed class UserRoleDto
 
 public sealed class UserDetailDto : UserSummaryDto
 {
+    public string? OfficeNumber { get; set; }
+    public string? Notes { get; set; }
+    public bool TwoFactorEnabled { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -60,7 +63,6 @@ public sealed class UserCreateRequest
 {
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string ConfirmPassword { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }

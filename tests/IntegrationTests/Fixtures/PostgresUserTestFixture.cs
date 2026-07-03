@@ -67,6 +67,8 @@ public sealed class PostgresUserTestFixture : IAsyncLifetime
                     ["ConnectionStrings:DefaultConnection"] = ConnectionString,
                     ["Jwt:Secret"] = configuration["Jwt:Secret"]
                         ?? "TestOnlySecretKey_ForIntegrationTests_Min32Chars!",
+                    ["Users:EmailDomain"] = configuration["Users:EmailDomain"]
+                        ?? "company.local",
                 })
                 .Build();
 

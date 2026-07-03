@@ -27,13 +27,11 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         const string plainPassword = "Strong@123";
-        var email = $"inttest.create.{Guid.NewGuid():N}@example.com";
 
         var result = await userService.CreateAsync(new UserCreateRequest
         {
             FirstName = "Integration",
             LastName = "Create",
-            Email = email,
             Password = plainPassword,
             ConfirmPassword = plainPassword,
             PhoneNumber = "5551234567",
@@ -84,7 +82,6 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
         {
             FirstName = "Integration",
             LastName = "Update",
-            Email = $"inttest.update.{Guid.NewGuid():N}@example.com",
             Password = "Strong@123",
             ConfirmPassword = "Strong@123",
             RoleIds = [PostgresUserTestFixture.RoleOneId, PostgresUserTestFixture.RoleTwoId],
@@ -135,7 +132,6 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
         {
             FirstName = "Existing",
             LastName = "User",
-            Email = $"inttest.existing.{Guid.NewGuid():N}@example.com",
             Password = "Strong@123",
             ConfirmPassword = "Strong@123",
             RoleIds = [PostgresUserTestFixture.RoleOneId],
@@ -167,19 +163,28 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
         var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+        const string officeNumber = "5559876543";
+        const string notes = "Integration read-path notes";
+        const bool twoFactorEnabled = true;
+
         var createResult = await userService.CreateAsync(new UserCreateRequest
         {
             FirstName = "Integration",
             LastName = "Read",
-            Email = $"inttest.read.{Guid.NewGuid():N}@example.com",
             Password = "Strong@123",
             ConfirmPassword = "Strong@123",
+            OfficeNumber = officeNumber,
+            Notes = notes,
+            TwoFactorEnabled = twoFactorEnabled,
             RoleIds = [PostgresUserTestFixture.RoleOneId, PostgresUserTestFixture.RoleTwoId],
             IsActive = true,
         });
 
         var userById = await userRepository.GetByIdWithRolesAsync(createResult.Id);
         Assert.NotNull(userById);
+        Assert.Equal(officeNumber, userById.OfficeNumber);
+        Assert.Equal(notes, userById.Notes);
+        Assert.Equal(twoFactorEnabled, userById.TwoFactorEnabled);
         Assert.Equal(2, userById.UserRoles.Count);
         foreach (var userRole in userById.UserRoles)
         {
@@ -203,6 +208,9 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
 
         var detail = await userService.GetByIdAsync(createResult.Id);
         Assert.NotNull(detail);
+        Assert.Equal(officeNumber, detail.OfficeNumber);
+        Assert.Equal(notes, detail.Notes);
+        Assert.Equal(twoFactorEnabled, detail.TwoFactorEnabled);
         Assert.Equal(2, detail.Roles.Count);
         Assert.Contains(
             detail.Roles,
@@ -233,5 +241,46 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
 
         Assert.Equal(2, trackedRoleNames.Count);
         Assert.All(detail.Roles, role => Assert.Contains(role.Name, trackedRoleNames));
+    }
+
+    [SkippableFact]
+    public async Task CreateAsync_same_name_assigns_matching_suffix_to_username_and_email()
+    {
+        SkipUnlessDatabaseAvailable();
+        await using var scope = fixture.CreateScope();
+        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        const string emailDomain = "company.local";
+
+        var firstResult = await userService.CreateAsync(new UserCreateRequest
+        {
+            FirstName = "Charan",
+            LastName = "Singh",
+            Password = "Strong@123",
+            ConfirmPassword = "Strong@123",
+            RoleIds = [PostgresUserTestFixture.RoleOneId],
+            IsActive = true,
+        });
+
+        var secondResult = await userService.CreateAsync(new UserCreateRequest
+        {
+            FirstName = "Charan",
+            LastName = "Singh",
+            Password = "Strong@123",
+            ConfirmPassword = "Strong@123",
+            RoleIds = [PostgresUserTestFixture.RoleOneId],
+            IsActive = true,
+        });
+
+        var firstUser = await dbContext.Users.AsNoTracking().SingleAsync(user => user.Id == firstResult.Id);
+        var secondUser = await dbContext.Users.AsNoTracking().SingleAsync(user => user.Id == secondResult.Id);
+
+        Assert.Equal("charan.singh", firstUser.Username);
+        Assert.Equal($"charan.singh@{emailDomain}", firstUser.Email);
+        Assert.Equal($"charan.singh@{emailDomain}", firstResult.Email);
+
+        Assert.Equal("charan.singh1", secondUser.Username);
+        Assert.Equal($"charan.singh1@{emailDomain}", secondUser.Email);
+        Assert.Equal($"charan.singh1@{emailDomain}", secondResult.Email);
     }
 }

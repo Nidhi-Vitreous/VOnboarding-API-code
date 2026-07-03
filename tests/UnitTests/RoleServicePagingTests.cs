@@ -177,6 +177,12 @@ public class RoleServicePagingTests
             CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 
+        public Task<bool> EmailExistsAsync(
+            string email,
+            Guid? excludeUserId = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
         public Task<bool> RoleNameInUseAsync(string roleName, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
     }

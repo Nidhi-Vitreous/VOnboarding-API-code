@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+using Microsoft.Extensions.Configuration;
 using Vitreous.Onboarding.Application.Auth;
 using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
@@ -8,10 +11,14 @@ namespace Vitreous.Onboarding.Application.Users;
 public sealed class UserService(
     IUserRepository userRepository,
     IRoleRepository roleRepository,
-    IPasswordHasher passwordHasher) : IUserService
+    IPasswordHasher passwordHasher,
+    IConfiguration configuration) : IUserService
 {
     private const int MaxUsernameLength = 128;
+    private const int MaxEmailLength = 256;
     private const int MaxUsernameDedupAttempts = 10_000;
+    private readonly string _emailDomain = configuration["Users:EmailDomain"]
+        ?? throw new InvalidOperationException("Users:EmailDomain is not configured.");
 
     public async Task<UserProfileDto?> GetProfileAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -64,10 +71,9 @@ public sealed class UserService(
         UserValidation.ValidateRequest(request);
 
         var resolvedRoles = await ResolveRolesAsync(request.RoleIds, cancellationToken);
-        var email = request.Email.Trim();
         var firstName = request.FirstName.Trim();
         var lastName = request.LastName.Trim();
-        var username = await ResolveUniqueUsernameAsync(email, cancellationToken);
+        var (username, email) = await ResolveUniqueIdentityAsync(firstName, lastName, cancellationToken);
         var now = DateTime.UtcNow;
         var userId = Guid.NewGuid();
 
@@ -195,6 +201,9 @@ public sealed class UserService(
         Role = user.Role,
         Department = user.Department,
         PhoneNumber = user.PhoneNumber,
+        OfficeNumber = user.OfficeNumber,
+        Notes = user.Notes,
+        TwoFactorEnabled = user.TwoFactorEnabled,
         IsActive = user.IsActive,
         LastLoginAt = user.LastLoginAt,
         CreatedAt = user.CreatedAt,
@@ -291,27 +300,80 @@ public sealed class UserService(
         return resolvedRoles;
     }
 
-    private async Task<string> ResolveUniqueUsernameAsync(string email, CancellationToken cancellationToken)
+    private async Task<(string Username, string Email)> ResolveUniqueIdentityAsync(
+        string firstName,
+        string lastName,
+        CancellationToken cancellationToken)
     {
-        var localPart = email.Split('@')[0].Trim().ToLowerInvariant();
+        var sanitizedFirstName = SanitizeNamePart(firstName);
+        var sanitizedLastName = SanitizeNamePart(lastName);
+
+        if (string.IsNullOrEmpty(sanitizedFirstName) || string.IsNullOrEmpty(sanitizedLastName))
+        {
+            throw new BusinessRuleException("Cannot derive a login from the provided name.");
+        }
+
+        var localBase = $"{sanitizedFirstName}.{sanitizedLastName}";
 
         for (var suffix = 0; suffix <= MaxUsernameDedupAttempts; suffix++)
         {
-            var candidate = BuildUsernameCandidate(localPart, suffix);
-            if (!await userRepository.UsernameExistsAsync(candidate, cancellationToken: cancellationToken))
+            var candidateLocalPart = BuildIdentityLocalPart(localBase, suffix);
+            var username = candidateLocalPart;
+            var email = BuildEmailAddress(candidateLocalPart);
+
+            if (email.Length > MaxEmailLength)
             {
-                return candidate;
+                continue;
+            }
+
+            var usernameAvailable = !await userRepository.UsernameExistsAsync(
+                username,
+                cancellationToken: cancellationToken);
+            var emailAvailable = !await userRepository.EmailExistsAsync(
+                email,
+                cancellationToken: cancellationToken);
+
+            if (usernameAvailable && emailAvailable)
+            {
+                return (username, email);
             }
         }
 
         throw new BusinessRuleException(UserMessages.DuplicateUsername);
     }
 
-    private static string BuildUsernameCandidate(string localPart, int suffix)
+    private string BuildEmailAddress(string localPart) => $"{localPart}@{_emailDomain}";
+
+    private static string SanitizeNamePart(string value)
+    {
+        var normalized = value.Trim().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+
+        foreach (var character in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (character is >= 'a' and <= 'z' or >= '0' and <= '9')
+            {
+                builder.Append(character);
+            }
+            else if (character is >= 'A' and <= 'Z')
+            {
+                builder.Append(char.ToLowerInvariant(character));
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildIdentityLocalPart(string localBase, int suffix)
     {
         var suffixText = suffix == 0 ? string.Empty : suffix.ToString();
         var maxBaseLength = MaxUsernameLength - suffixText.Length;
-        var basePart = localPart.Length > maxBaseLength ? localPart[..maxBaseLength] : localPart;
+        var basePart = localBase.Length > maxBaseLength ? localBase[..maxBaseLength] : localBase;
         return $"{basePart}{suffixText}";
     }
 }

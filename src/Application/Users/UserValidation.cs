@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using System.Text.RegularExpressions;
 using Vitreous.Onboarding.Application.Common;
 
@@ -21,15 +20,6 @@ internal static partial class UserValidation
         if (string.IsNullOrWhiteSpace(request.LastName))
         {
             errors.Add("Last name is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Email))
-        {
-            errors.Add("Email is required.");
-        }
-        else if (!IsValidEmail(request.Email))
-        {
-            errors.Add("Email format is invalid.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Password))
@@ -93,21 +83,6 @@ internal static partial class UserValidation
         if (errors.Count > 0)
         {
             throw new BusinessRuleException("Validation failed.", errors.ToArray());
-        }
-    }
-
-    private static bool IsValidEmail(string email)
-    {
-        var trimmed = email.Trim();
-
-        try
-        {
-            var address = new MailAddress(trimmed);
-            return address.Address.Equals(trimmed, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (FormatException)
-        {
-            return false;
         }
     }
 

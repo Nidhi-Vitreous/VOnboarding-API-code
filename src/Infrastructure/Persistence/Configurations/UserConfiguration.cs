@@ -27,6 +27,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnName("email")
             .HasMaxLength(256);
 
+        // Case-insensitive unique email (NULL-tolerant) enforced by ix_users_email_lower_unique — see AddUniqueEmailIndex migration.
+
         builder.Property(u => u.PasswordHash)
             .HasColumnName("password_hash")
             .IsRequired();
