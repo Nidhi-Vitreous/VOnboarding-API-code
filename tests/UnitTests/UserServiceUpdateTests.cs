@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Users;
@@ -232,10 +233,15 @@ public class UserServiceUpdateTests
         return request;
     }
 
+    private static IConfiguration CreateUserServiceConfiguration() =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Users:EmailDomain"] = "company.local" })
+            .Build();
+
     private static UserService CreateSut(
         FakeUserRepository userRepository,
         FakeRoleRepository? roleRepository = null) =>
-        new(userRepository, roleRepository ?? new FakeRoleRepository(), new FakePasswordHasher());
+        new(userRepository, roleRepository ?? new FakeRoleRepository(), new FakePasswordHasher(), CreateUserServiceConfiguration());
 
     private static User CreateUser(Guid id) => new()
     {
@@ -335,6 +341,12 @@ public class UserServiceUpdateTests
 
         public Task<bool> UsernameExistsAsync(
             string username,
+            Guid? excludeUserId = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<bool> EmailExistsAsync(
+            string email,
             Guid? excludeUserId = null,
             CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();

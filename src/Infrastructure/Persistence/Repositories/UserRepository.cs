@@ -93,6 +93,23 @@ public sealed class UserRepository(ApplicationDbContext dbContext) : IUserReposi
         return query.AnyAsync(cancellationToken);
     }
 
+    public Task<bool> EmailExistsAsync(
+        string email,
+        Guid? excludeUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var query = dbContext.Users.AsNoTracking()
+            .Where(u => u.Email != null && u.Email.ToLower() == normalizedEmail);
+
+        if (excludeUserId.HasValue)
+        {
+            query = query.Where(u => u.Id != excludeUserId.Value);
+        }
+
+        return query.AnyAsync(cancellationToken);
+    }
+
     public Task<bool> RoleNameInUseAsync(string roleName, CancellationToken cancellationToken = default) =>
         dbContext.Users.AsNoTracking()
             .AnyAsync(u => u.Role.ToLower() == roleName.ToLower(), cancellationToken);

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Users;
 using Vitreous.Onboarding.Domain.Entities;
@@ -59,7 +60,13 @@ public class UserServicePagingTests
     }
 
     private static UserService CreateSut(FakeUserRepository userRepository) =>
-        new(userRepository, new FakeRoleRepository(), new FakePasswordHasher());
+        new(
+            userRepository,
+            new FakeRoleRepository(),
+            new FakePasswordHasher(),
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["Users:EmailDomain"] = "company.local" })
+                .Build());
 
     private sealed class FakeUserRepository : IUserRepository
     {
@@ -107,6 +114,12 @@ public class UserServicePagingTests
 
         public Task<bool> UsernameExistsAsync(
             string username,
+            Guid? excludeUserId = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<bool> EmailExistsAsync(
+            string email,
             Guid? excludeUserId = null,
             CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
