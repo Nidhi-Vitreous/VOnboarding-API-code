@@ -13,6 +13,9 @@ public interface IRoleRepository
         CancellationToken cancellationToken = default);
     Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Role?> GetRoleByNameAsync(string name, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Role>> GetRolesWithPermissionsByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
     Task<Role> CreateRoleAsync(Role role, IReadOnlyList<Guid> permissionIds, CancellationToken cancellationToken = default);
     Task<Role?> UpdateRoleAsync(
         Guid id,

@@ -23,6 +23,13 @@ public sealed class PermissionAuthorizationService(
             return true;
         }
 
+        var roles = await roleRepository.GetRolesWithPermissionsByUserIdAsync(user.Id, cancellationToken);
+        if (roles.Count > 0)
+        {
+            return roles.Any(role => role.RolePermissions.Any(assignment =>
+                string.Equals(assignment.Permission.SystemName, systemPermission.Trim(), StringComparison.OrdinalIgnoreCase)));
+        }
+
         if (string.IsNullOrWhiteSpace(user.Role))
         {
             return false;

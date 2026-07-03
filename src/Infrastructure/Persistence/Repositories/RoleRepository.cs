@@ -68,6 +68,16 @@ public sealed class RoleRepository(ApplicationDbContext dbContext) : IRoleReposi
             .FirstOrDefaultAsync(r => r.Name.ToLower() == normalizedName, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Role>> GetRolesWithPermissionsByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default) =>
+        await dbContext.Roles
+            .AsNoTracking()
+            .Where(role => role.UserRoles.Any(userRole => userRole.UserId == userId))
+            .Include(role => role.RolePermissions)
+            .ThenInclude(rolePermission => rolePermission.Permission)
+            .ToListAsync(cancellationToken);
+
     public async Task<Role> CreateRoleAsync(
         Role role,
         IReadOnlyList<Guid> permissionIds,
