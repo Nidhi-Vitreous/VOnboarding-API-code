@@ -24,6 +24,9 @@ public sealed class UserRoleDto
 
 public sealed class UserDetailDto : UserSummaryDto
 {
+    public string? OfficeNumber { get; set; }
+    public string? Notes { get; set; }
+    public bool TwoFactorEnabled { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

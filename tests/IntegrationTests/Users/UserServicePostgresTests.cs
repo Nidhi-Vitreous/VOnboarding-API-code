@@ -167,6 +167,10 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
         var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+        const string officeNumber = "5559876543";
+        const string notes = "Integration read-path notes";
+        const bool twoFactorEnabled = true;
+
         var createResult = await userService.CreateAsync(new UserCreateRequest
         {
             FirstName = "Integration",
@@ -174,12 +178,18 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
             Email = $"inttest.read.{Guid.NewGuid():N}@example.com",
             Password = "Strong@123",
             ConfirmPassword = "Strong@123",
+            OfficeNumber = officeNumber,
+            Notes = notes,
+            TwoFactorEnabled = twoFactorEnabled,
             RoleIds = [PostgresUserTestFixture.RoleOneId, PostgresUserTestFixture.RoleTwoId],
             IsActive = true,
         });
 
         var userById = await userRepository.GetByIdWithRolesAsync(createResult.Id);
         Assert.NotNull(userById);
+        Assert.Equal(officeNumber, userById.OfficeNumber);
+        Assert.Equal(notes, userById.Notes);
+        Assert.Equal(twoFactorEnabled, userById.TwoFactorEnabled);
         Assert.Equal(2, userById.UserRoles.Count);
         foreach (var userRole in userById.UserRoles)
         {
@@ -203,6 +213,9 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
 
         var detail = await userService.GetByIdAsync(createResult.Id);
         Assert.NotNull(detail);
+        Assert.Equal(officeNumber, detail.OfficeNumber);
+        Assert.Equal(notes, detail.Notes);
+        Assert.Equal(twoFactorEnabled, detail.TwoFactorEnabled);
         Assert.Equal(2, detail.Roles.Count);
         Assert.Contains(
             detail.Roles,
