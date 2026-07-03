@@ -130,7 +130,7 @@ public sealed class UserService(
 
         SyncUserRoles(user, resolvedRoles);
 
-        await userRepository.UpdateAsync(user, cancellationToken);
+        await userRepository.SaveTrackedChangesAsync(cancellationToken);
 
         var detail = MapToDetail(user);
         detail.Roles = MapToRoleDtos(resolvedRoles);

@@ -101,6 +101,9 @@ public class UserServiceStatusTests
             return Task.CompletedTask;
         }
 
+        public Task SaveTrackedChangesAsync(CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
         public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 

@@ -18,6 +18,7 @@ public interface IUserRepository
         CancellationToken cancellationToken = default);
     Task AddAsync(User user, CancellationToken cancellationToken = default);
     Task UpdateAsync(User user, CancellationToken cancellationToken = default);
+    Task SaveTrackedChangesAsync(CancellationToken cancellationToken = default);
     Task<bool> UsernameExistsAsync(string username, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
     Task<bool> RoleNameInUseAsync(string roleName, CancellationToken cancellationToken = default);
     Task<IReadOnlyDictionary<string, int>> GetActiveUserCountsByRoleNamesAsync(

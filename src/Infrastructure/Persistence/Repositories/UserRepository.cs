@@ -74,6 +74,9 @@ public sealed class UserRepository(ApplicationDbContext dbContext) : IUserReposi
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public Task SaveTrackedChangesAsync(CancellationToken cancellationToken = default) =>
+        dbContext.SaveChangesAsync(cancellationToken);
+
     public Task<bool> UsernameExistsAsync(
         string username,
         Guid? excludeUserId = null,
