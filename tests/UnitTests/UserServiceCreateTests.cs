@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Users;
@@ -8,9 +9,10 @@ namespace Vitreous.Onboarding.UnitTests;
 public class UserServiceCreateTests
 {
     private const string ValidPassword = "Password1!";
+    private const string DefaultEmailDomain = "company.local";
 
     [Fact]
-    public async Task CreateAsync_valid_multi_role_create_writes_user_roles_and_sets_first_role_as_legacy_role()
+    public async Task CreateAsync_valid_multi_role_create_writes_user_roles_and_hashed_password()
     {
         var primaryRoleId = Guid.NewGuid();
         var secondaryRoleId = Guid.NewGuid();
@@ -36,6 +38,9 @@ public class UserServiceCreateTests
         Assert.Equal("Yash Patel", userRepository.LastAddedUser.FullName);
         Assert.Equal("Yash", userRepository.LastAddedUser.FirstName);
         Assert.Equal("Patel", userRepository.LastAddedUser.LastName);
+        Assert.Equal("yash.patel", userRepository.LastAddedUser.Username);
+        Assert.Equal($"yash.patel@{DefaultEmailDomain}", userRepository.LastAddedUser.Email);
+        Assert.Equal($"yash.patel@{DefaultEmailDomain}", result.Email);
         Assert.Equal(2, userRepository.LastAddedUser.UserRoles.Count);
         Assert.Contains(
             userRepository.LastAddedUser.UserRoles,
@@ -53,7 +58,7 @@ public class UserServiceCreateTests
     }
 
     [Fact]
-    public async Task CreateAsync_derives_username_from_email_local_part()
+    public async Task CreateAsync_derives_matching_username_and_email_from_sanitized_name()
     {
         var roleId = Guid.NewGuid();
         var userRepository = new FakeUserRepository();
@@ -66,13 +71,68 @@ public class UserServiceCreateTests
         };
         var sut = CreateSut(userRepository, roleRepository);
 
-        await sut.CreateAsync(ValidRequest([roleId]));
+        await sut.CreateAsync(ValidRequest([roleId], request =>
+        {
+            request.FirstName = "José";
+            request.LastName = "Singh";
+        }));
 
-        Assert.Equal("yash.patel", userRepository.LastAddedUser!.Username);
+        Assert.Equal("jose.singh", userRepository.LastAddedUser!.Username);
+        Assert.Equal($"jose.singh@{DefaultEmailDomain}", userRepository.LastAddedUser.Email);
     }
 
     [Fact]
-    public async Task CreateAsync_deduplicates_username_when_local_part_already_exists()
+    public async Task CreateAsync_uses_configured_email_domain()
+    {
+        var roleId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository();
+        var roleRepository = new FakeRoleRepository
+        {
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "Support", "Operations"),
+            },
+        };
+        const string customDomain = "vitreous.test";
+        var sut = CreateSut(userRepository, roleRepository, configuration: CreateConfiguration(customDomain));
+
+        await sut.CreateAsync(ValidRequest([roleId]));
+
+        Assert.Equal($"yash.patel@{customDomain}", userRepository.LastAddedUser!.Email);
+    }
+
+    [Fact]
+    public async Task CreateAsync_same_name_assigns_suffix_one_to_both_username_and_email()
+    {
+        var roleId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository
+        {
+            ExistingUsernames = ["charan.singh"],
+            ExistingEmails = [$"charan.singh@{DefaultEmailDomain}"],
+        };
+        var roleRepository = new FakeRoleRepository
+        {
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "Support", "Operations"),
+            },
+        };
+        var sut = CreateSut(userRepository, roleRepository);
+
+        await sut.CreateAsync(ValidRequest([roleId], request =>
+        {
+            request.FirstName = "Charan";
+            request.LastName = "Singh";
+        }));
+
+        Assert.Equal(["charan.singh", "charan.singh1"], userRepository.UsernameChecks);
+        Assert.Equal([$"charan.singh@{DefaultEmailDomain}", $"charan.singh1@{DefaultEmailDomain}"], userRepository.EmailChecks);
+        Assert.Equal("charan.singh1", userRepository.LastAddedUser!.Username);
+        Assert.Equal($"charan.singh1@{DefaultEmailDomain}", userRepository.LastAddedUser.Email);
+    }
+
+    [Fact]
+    public async Task CreateAsync_advances_suffix_when_username_is_taken_but_email_is_free()
     {
         var roleId = Guid.NewGuid();
         var userRepository = new FakeUserRepository
@@ -90,8 +150,33 @@ public class UserServiceCreateTests
 
         await sut.CreateAsync(ValidRequest([roleId]));
 
-        Assert.Equal(["yash.patel", "yash.patel1"], userRepository.UsernameChecks);
         Assert.Equal("yash.patel1", userRepository.LastAddedUser!.Username);
+        Assert.Equal($"yash.patel1@{DefaultEmailDomain}", userRepository.LastAddedUser.Email);
+    }
+
+    [Fact]
+    public async Task CreateAsync_unsanitizable_name_throws_and_does_not_persist()
+    {
+        var roleId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository();
+        var roleRepository = new FakeRoleRepository
+        {
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "Support", "Operations"),
+            },
+        };
+        var sut = CreateSut(userRepository, roleRepository);
+
+        var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            sut.CreateAsync(ValidRequest([roleId], request =>
+            {
+                request.FirstName = "---";
+                request.LastName = "Patel";
+            })));
+
+        Assert.Equal("Cannot derive a login from the provided name.", exception.Message);
+        Assert.False(userRepository.AddCalled);
     }
 
     [Fact]
@@ -207,7 +292,6 @@ public class UserServiceCreateTests
         {
             FirstName = "Yash",
             LastName = "Patel",
-            Email = "yash.patel@example.com",
             Password = ValidPassword,
             ConfirmPassword = ValidPassword,
             RoleIds = roleIds.ToList(),
@@ -216,6 +300,11 @@ public class UserServiceCreateTests
         configure?.Invoke(request);
         return request;
     }
+
+    private static IConfiguration CreateConfiguration(string emailDomain) =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Users:EmailDomain"] = emailDomain })
+            .Build();
 
     private static Role CreateRole(
         Guid id,
@@ -237,16 +326,23 @@ public class UserServiceCreateTests
     private static UserService CreateSut(
         FakeUserRepository userRepository,
         FakeRoleRepository roleRepository,
-        FakePasswordHasher? passwordHasher = null) =>
-        new(userRepository, roleRepository, passwordHasher ?? new FakePasswordHasher());
+        FakePasswordHasher? passwordHasher = null,
+        IConfiguration? configuration = null) =>
+        new(
+            userRepository,
+            roleRepository,
+            passwordHasher ?? new FakePasswordHasher(),
+            configuration ?? CreateConfiguration(DefaultEmailDomain));
 
     private sealed class FakeUserRepository : IUserRepository
     {
         public HashSet<string> ExistingUsernames { get; init; } = [];
+        public HashSet<string> ExistingEmails { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public bool AddCalled { get; private set; }
         public int AddCallCount { get; private set; }
         public User? LastAddedUser { get; private set; }
         public List<string> UsernameChecks { get; } = [];
+        public List<string> EmailChecks { get; } = [];
 
         public Task AddAsync(User user, CancellationToken cancellationToken = default)
         {
@@ -263,6 +359,15 @@ public class UserServiceCreateTests
         {
             UsernameChecks.Add(username);
             return Task.FromResult(ExistingUsernames.Contains(username));
+        }
+
+        public Task<bool> EmailExistsAsync(
+            string email,
+            Guid? excludeUserId = null,
+            CancellationToken cancellationToken = default)
+        {
+            EmailChecks.Add(email);
+            return Task.FromResult(ExistingEmails.Contains(email));
         }
 
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>

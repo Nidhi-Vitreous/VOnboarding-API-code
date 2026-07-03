@@ -38,7 +38,6 @@ public sealed class PermissionAuthorizationPostgresTests(PostgresUserTestFixture
         {
             FirstName = "Permission",
             LastName = "Union",
-            Email = $"inttest.permission.{Guid.NewGuid():N}@example.com",
             Password = "Strong@123",
             ConfirmPassword = "Strong@123",
             RoleIds = [PostgresUserTestFixture.RoleOneId, PostgresUserTestFixture.RoleTwoId],
