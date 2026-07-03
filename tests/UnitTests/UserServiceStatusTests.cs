@@ -88,6 +88,12 @@ public class UserServiceStatusTests
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(User is not null && User.Id == id ? User : null);
 
+        public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public Task<User?> GetByIdTrackedWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default)
         {
             UpdateCalled = true;

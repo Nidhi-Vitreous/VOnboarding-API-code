@@ -13,37 +13,48 @@ public class UserServiceUpdateTests
         var userRepository = new FakeUserRepository();
         var sut = CreateSut(userRepository);
 
-        var result = await sut.UpdateAsync(Guid.NewGuid(), new UserUpdateRequest { Department = "New" });
+        var result = await sut.UpdateAsync(Guid.NewGuid(), ValidUpdateRequest([Guid.NewGuid()]));
 
         Assert.Null(result);
         Assert.False(userRepository.UpdateCalled);
     }
 
     [Fact]
-    public async Task UpdateAsync_valid_active_role_updates_role_name_and_persists()
+    public async Task UpdateAsync_replaces_role_set_by_adding_and_removing_user_roles()
     {
         var userId = Guid.NewGuid();
-        var roleId = Guid.NewGuid();
+        var keepRoleId = Guid.NewGuid();
+        var removeRoleId = Guid.NewGuid();
+        var addRoleId = Guid.NewGuid();
         var user = CreateUser(userId);
+        user.UserRoles =
+        [
+            CreateUserRole(userId, keepRoleId, "Support", "Ops"),
+            CreateUserRole(userId, removeRoleId, "Legacy", "Ops"),
+        ];
         var userRepository = new FakeUserRepository { User = user };
         var roleRepository = new FakeRoleRepository
         {
-            Role = new Role
+            Roles = new Dictionary<Guid, Role>
             {
-                Id = roleId,
-                Name = "Terminal Operator",
-                IsActive = true,
+                [keepRoleId] = CreateRole(keepRoleId, "Support", "Ops"),
+                [addRoleId] = CreateRole(addRoleId, "Terminal Operator", "Operations"),
             },
         };
         var sut = CreateSut(userRepository, roleRepository);
 
-        var result = await sut.UpdateAsync(userId, new UserUpdateRequest { RoleId = roleId });
+        var result = await sut.UpdateAsync(userId, ValidUpdateRequest([keepRoleId, addRoleId]));
 
         Assert.NotNull(result);
-        Assert.Equal("Terminal Operator", result.Role);
         Assert.True(userRepository.UpdateCalled);
-        Assert.NotNull(userRepository.LastUpdatedUser);
-        Assert.Equal("Terminal Operator", userRepository.LastUpdatedUser!.Role);
+        Assert.Equal(2, userRepository.LastUpdatedUser!.UserRoles.Count);
+        Assert.DoesNotContain(userRepository.LastUpdatedUser.UserRoles, userRole => userRole.RoleId == removeRoleId);
+        Assert.Contains(userRepository.LastUpdatedUser.UserRoles, userRole => userRole.RoleId == keepRoleId);
+        Assert.Contains(userRepository.LastUpdatedUser.UserRoles, userRole => userRole.RoleId == addRoleId);
+        Assert.Equal(2, result.Roles.Count);
+        Assert.Equal("Support", result.Role);
+        Assert.Equal("Support", result.Roles[0].Name);
+        Assert.Equal("Terminal Operator", result.Roles[1].Name);
     }
 
     [Fact]
@@ -51,11 +62,11 @@ public class UserServiceUpdateTests
     {
         var userId = Guid.NewGuid();
         var userRepository = new FakeUserRepository { User = CreateUser(userId) };
-        var roleRepository = new FakeRoleRepository { Role = null };
+        var roleRepository = new FakeRoleRepository();
         var sut = CreateSut(userRepository, roleRepository);
 
         var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            sut.UpdateAsync(userId, new UserUpdateRequest { RoleId = Guid.NewGuid() }));
+            sut.UpdateAsync(userId, ValidUpdateRequest([Guid.NewGuid()])));
 
         Assert.Equal(UserMessages.InvalidRole, exception.Message);
         Assert.Contains(UserMessages.RoleNotFound, exception.Details ?? []);
@@ -70,17 +81,15 @@ public class UserServiceUpdateTests
         var userRepository = new FakeUserRepository { User = CreateUser(userId) };
         var roleRepository = new FakeRoleRepository
         {
-            Role = new Role
+            Roles = new Dictionary<Guid, Role>
             {
-                Id = roleId,
-                Name = "Retired Role",
-                IsActive = false,
+                [roleId] = CreateRole(roleId, "Retired Role", "Ops", isActive: false),
             },
         };
         var sut = CreateSut(userRepository, roleRepository);
 
         var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            sut.UpdateAsync(userId, new UserUpdateRequest { RoleId = roleId }));
+            sut.UpdateAsync(userId, ValidUpdateRequest([roleId])));
 
         Assert.Equal(UserMessages.InvalidRole, exception.Message);
         Assert.Contains(UserMessages.RoleInactive, exception.Details ?? []);
@@ -88,25 +97,118 @@ public class UserServiceUpdateTests
     }
 
     [Fact]
-    public async Task UpdateAsync_department_only_leaves_role_and_phone_unchanged()
+    public async Task UpdateAsync_empty_role_ids_throws_validation_error()
     {
         var userId = Guid.NewGuid();
-        var user = CreateUser(userId);
-        user.Role = "Support";
-        user.PhoneNumber = "+15550001111";
-        var userRepository = new FakeUserRepository { User = user };
+        var userRepository = new FakeUserRepository { User = CreateUser(userId) };
         var sut = CreateSut(userRepository);
 
-        var result = await sut.UpdateAsync(userId, new UserUpdateRequest { Department = "  Billing  " });
+        var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            sut.UpdateAsync(userId, ValidUpdateRequest([])));
+
+        Assert.Equal("Validation failed.", exception.Message);
+        Assert.Contains("At least one role is required.", exception.Details ?? []);
+        Assert.False(userRepository.UpdateCalled);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_updates_scalar_fields_and_legacy_role_from_first_role()
+    {
+        var userId = Guid.NewGuid();
+        var roleId = Guid.NewGuid();
+        var user = CreateUser(userId);
+        var userRepository = new FakeUserRepository { User = user };
+        var roleRepository = new FakeRoleRepository
+        {
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "Terminal Operator", "Operations"),
+            },
+        };
+        var sut = CreateSut(userRepository, roleRepository);
+
+        var result = await sut.UpdateAsync(userId, ValidUpdateRequest([roleId], request =>
+        {
+            request.FirstName = "  Yash  ";
+            request.LastName = "  Patel  ";
+            request.PhoneNumber = "+1 (555) 123-4567";
+            request.OfficeNumber = "  101  ";
+            request.Notes = "  Notes  ";
+            request.TwoFactorEnabled = true;
+        }));
 
         Assert.NotNull(result);
-        Assert.Equal("Billing", result.Department);
-        Assert.Equal("Support", result.Role);
-        Assert.Equal("+15550001111", result.PhoneNumber);
+        Assert.Equal("Yash", result.FirstName);
+        Assert.Equal("Patel", result.LastName);
+        Assert.Equal("Yash Patel", result.FullName);
+        Assert.Equal("+1 (555) 123-4567", result.PhoneNumber);
+        Assert.Equal("Terminal Operator", result.Role);
+        Assert.Equal("Operations", result.Roles[0].DepartmentName);
         Assert.True(userRepository.UpdateCalled);
-        Assert.Equal("Billing", userRepository.LastUpdatedUser!.Department);
-        Assert.Equal("Support", userRepository.LastUpdatedUser.Role);
-        Assert.Equal("+15550001111", userRepository.LastUpdatedUser.PhoneNumber);
+        Assert.Equal("Yash", userRepository.LastUpdatedUser!.FirstName);
+        Assert.Equal("Patel", userRepository.LastUpdatedUser.LastName);
+        Assert.Equal("Yash Patel", userRepository.LastUpdatedUser.FullName);
+        Assert.Equal("101", userRepository.LastUpdatedUser.OfficeNumber);
+        Assert.Equal("Notes", userRepository.LastUpdatedUser.Notes);
+        Assert.True(userRepository.LastUpdatedUser.TwoFactorEnabled);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_returns_roles_with_names_and_department()
+    {
+        var userId = Guid.NewGuid();
+        var roleId = Guid.NewGuid();
+        var user = CreateUser(userId);
+        user.UserRoles = [CreateUserRole(userId, roleId, "Support", "Customer Success")];
+        var userRepository = new FakeUserRepository { UserWithRoles = user };
+        var sut = CreateSut(userRepository);
+
+        var result = await sut.GetByIdAsync(userId);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Roles);
+        Assert.Equal(roleId, result.Roles[0].Id);
+        Assert.Equal("Support", result.Roles[0].Name);
+        Assert.Equal("Customer Success", result.Roles[0].DepartmentName);
+        Assert.Equal("Jane", result.FirstName);
+        Assert.Equal("Doe", result.LastName);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_returns_roles_with_names_and_department()
+    {
+        var userId = Guid.NewGuid();
+        var roleId = Guid.NewGuid();
+        var user = CreateUser(userId);
+        user.UserRoles = [CreateUserRole(userId, roleId, "Support", "Customer Success")];
+        var userRepository = new FakeUserRepository
+        {
+            PageItems = [user],
+            TotalCount = 1,
+        };
+        var sut = CreateSut(userRepository);
+
+        var result = await sut.GetAllAsync(1, 10);
+
+        Assert.Single(result.Data);
+        Assert.Single(result.Data[0].Roles);
+        Assert.Equal("Support", result.Data[0].Roles[0].Name);
+        Assert.Equal("Customer Success", result.Data[0].Roles[0].DepartmentName);
+    }
+
+    private static UserUpdateRequest ValidUpdateRequest(
+        IReadOnlyList<Guid> roleIds,
+        Action<UserUpdateRequest>? configure = null)
+    {
+        var request = new UserUpdateRequest
+        {
+            FirstName = "Jane",
+            LastName = "Doe",
+            RoleIds = roleIds.ToList(),
+        };
+
+        configure?.Invoke(request);
+        return request;
     }
 
     private static UserService CreateSut(
@@ -121,20 +223,62 @@ public class UserServiceUpdateTests
         Email = "jane@example.com",
         PasswordHash = "hash",
         Role = "Support",
+        FullName = "Jane Doe",
+        FirstName = "Jane",
+        LastName = "Doe",
         Department = "Ops",
         PhoneNumber = "+15550001111",
         IsActive = true,
         CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
         UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        UserRoles = [],
     };
+
+    private static Role CreateRole(
+        Guid id,
+        string name,
+        string departmentName,
+        bool isActive = true) =>
+        new()
+        {
+            Id = id,
+            Name = name,
+            IsActive = isActive,
+            Department = new Department
+            {
+                Id = Guid.NewGuid(),
+                Name = departmentName,
+            },
+        };
+
+    private static UserRole CreateUserRole(
+        Guid userId,
+        Guid roleId,
+        string roleName,
+        string departmentName) =>
+        new()
+        {
+            UserId = userId,
+            RoleId = roleId,
+            Role = CreateRole(roleId, roleName, departmentName),
+        };
 
     private sealed class FakeUserRepository : IUserRepository
     {
         public User? User { get; init; }
+        public User? UserWithRoles { get; init; }
+        public IReadOnlyList<User> PageItems { get; init; } = [];
+        public int TotalCount { get; init; }
         public bool UpdateCalled { get; private set; }
         public User? LastUpdatedUser { get; private set; }
 
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(User is not null && User.Id == id ? User : null);
+
+        public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(UserWithRoles is not null && UserWithRoles.Id == id ? UserWithRoles : null);
+
+        public Task<User?> GetByIdTrackedWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(User is not null && User.Id == id ? User : null);
 
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default)
@@ -155,7 +299,7 @@ public class UserServiceUpdateTests
             int pageSize,
             string? search,
             CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
+            Task.FromResult<(IReadOnlyList<User> Items, int TotalCount)>((PageItems, TotalCount));
 
         public Task AddAsync(User user, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
@@ -177,10 +321,10 @@ public class UserServiceUpdateTests
 
     private sealed class FakeRoleRepository : IRoleRepository
     {
-        public Role? Role { get; init; }
+        public Dictionary<Guid, Role> Roles { get; init; } = [];
 
         public Task<Role?> GetRoleByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Role is not null && Role.Id == id ? Role : null);
+            Task.FromResult(Roles.TryGetValue(id, out var role) ? role : null);
 
         public Task<IReadOnlyList<Role>> GetAllRolesWithPermissionsAsync(CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
