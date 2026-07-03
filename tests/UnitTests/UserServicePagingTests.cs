@@ -138,6 +138,11 @@ public class UserServicePagingTests
         public Task<Role?> GetRoleByNameAsync(string name, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 
+        public Task<IReadOnlyList<Role>> GetRolesWithPermissionsByUserIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
         public Task<Role> CreateRoleAsync(
             Role role,
             IReadOnlyList<Guid> permissionIds,
