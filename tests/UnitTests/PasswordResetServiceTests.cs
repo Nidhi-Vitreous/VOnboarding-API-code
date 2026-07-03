@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging.Abstractions;
 using Vitreous.Onboarding.Application.Auth;
 using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
@@ -16,28 +17,32 @@ public class PasswordResetServiceTests
     [InlineData("not-an-email")]
     public async Task RequestPasswordResetAsync_throws_for_invalid_email(string email)
     {
-        var sut = CreateSut(new FakeUserRepository(), new FakePasswordResetTokenRepository());
+        var emailService = new FakeEmailService();
+        var sut = CreateSut(new FakeUserRepository(), new FakePasswordResetTokenRepository(), emailService);
 
         var exception = await Assert.ThrowsAsync<BusinessRuleException>(
             () => sut.RequestPasswordResetAsync(email));
 
         Assert.Equal("Validation failed.", exception.Message);
+        Assert.Equal(0, emailService.SendCount);
     }
 
     [Fact]
     public async Task RequestPasswordResetAsync_returns_generic_success_when_user_not_found()
     {
         var tokenRepository = new FakePasswordResetTokenRepository();
-        var sut = CreateSut(new FakeUserRepository(), tokenRepository);
+        var emailService = new FakeEmailService();
+        var sut = CreateSut(new FakeUserRepository(), tokenRepository, emailService);
 
         var response = await sut.RequestPasswordResetAsync("missing@example.com");
 
         Assert.Equal(PasswordResetService.SuccessMessage, response.Message);
         Assert.Equal(0, tokenRepository.AddCount);
+        Assert.Equal(0, emailService.SendCount);
     }
 
     [Fact]
-    public async Task RequestPasswordResetAsync_creates_token_when_user_exists()
+    public async Task RequestPasswordResetAsync_creates_token_and_sends_email_when_user_exists()
     {
         var user = new User
         {
@@ -48,7 +53,8 @@ public class PasswordResetServiceTests
         };
         var userRepository = new FakeUserRepository { User = user };
         var tokenRepository = new FakePasswordResetTokenRepository();
-        var sut = CreateSut(userRepository, tokenRepository);
+        var emailService = new FakeEmailService();
+        var sut = CreateSut(userRepository, tokenRepository, emailService);
 
         var response = await sut.RequestPasswordResetAsync("admin@example.com");
 
@@ -57,6 +63,11 @@ public class PasswordResetServiceTests
         Assert.Equal(user.Id, tokenRepository.LastAddedToken?.UserId);
         Assert.True(tokenRepository.LastAddedToken!.ExpiresAt > DateTime.UtcNow.AddMinutes(14));
         Assert.True(tokenRepository.LastAddedToken.ExpiresAt <= DateTime.UtcNow.AddMinutes(21));
+        Assert.Equal(1, emailService.SendCount);
+        Assert.Equal("admin@example.com", emailService.LastTo);
+        Assert.Equal(PasswordResetEmailContent.Subject, emailService.LastSubject);
+        Assert.Contains("/reset-password?token=", emailService.LastBody);
+        Assert.Contains(tokenRepository.LastAddedToken.Token, emailService.LastBody);
     }
 
     [Fact]
@@ -71,17 +82,19 @@ public class PasswordResetServiceTests
         };
         var userRepository = new FakeUserRepository { User = user };
         var tokenRepository = new FakePasswordResetTokenRepository();
-        var sut = CreateSut(userRepository, tokenRepository);
+        var emailService = new FakeEmailService();
+        var sut = CreateSut(userRepository, tokenRepository, emailService);
 
         await sut.RequestPasswordResetAsync("admin@example.com");
         await sut.RequestPasswordResetAsync("admin@example.com");
 
         Assert.Equal(2, tokenRepository.AddCount);
         Assert.Equal(2, tokenRepository.InvalidateCount);
+        Assert.Equal(2, emailService.SendCount);
     }
 
     [Fact]
-    public async Task RequestPasswordResetAsync_does_not_create_token_for_inactive_user()
+    public async Task RequestPasswordResetAsync_does_not_create_token_or_send_email_for_inactive_user()
     {
         var user = new User
         {
@@ -92,21 +105,80 @@ public class PasswordResetServiceTests
         };
         var userRepository = new FakeUserRepository { User = user };
         var tokenRepository = new FakePasswordResetTokenRepository();
-        var sut = CreateSut(userRepository, tokenRepository);
+        var emailService = new FakeEmailService();
+        var sut = CreateSut(userRepository, tokenRepository, emailService);
 
         var response = await sut.RequestPasswordResetAsync("admin@example.com");
 
         Assert.Equal(PasswordResetService.SuccessMessage, response.Message);
         Assert.Equal(0, tokenRepository.AddCount);
+        Assert.Equal(0, emailService.SendCount);
+    }
+
+    [Fact]
+    public async Task RequestPasswordResetAsync_returns_success_when_email_send_fails()
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Username = "admin",
+            Email = "admin@example.com",
+            IsActive = true,
+        };
+        var userRepository = new FakeUserRepository { User = user };
+        var tokenRepository = new FakePasswordResetTokenRepository();
+        var emailService = new FakeEmailService { ShouldThrow = true };
+        var sut = CreateSut(userRepository, tokenRepository, emailService);
+
+        var response = await sut.RequestPasswordResetAsync("admin@example.com");
+
+        Assert.Equal(PasswordResetService.SuccessMessage, response.Message);
+        Assert.Equal(1, tokenRepository.AddCount);
+        Assert.Equal(1, emailService.SendCount);
     }
 
     private static PasswordResetService CreateSut(
         FakeUserRepository userRepository,
-        FakePasswordResetTokenRepository tokenRepository) =>
+        FakePasswordResetTokenRepository tokenRepository,
+        FakeEmailService emailService) =>
         new(
             userRepository,
             tokenRepository,
-            Options.Create(new PasswordResetOptions { TokenTtlMinutes = 20 }));
+            emailService,
+            Options.Create(new PasswordResetOptions
+            {
+                TokenTtlMinutes = 20,
+                FrontendBaseUrl = "http://localhost:4200",
+            }),
+            NullLogger<PasswordResetService>.Instance);
+
+    private sealed class FakeEmailService : IEmailService
+    {
+        public int SendCount { get; private set; }
+        public string? LastTo { get; private set; }
+        public string? LastSubject { get; private set; }
+        public string? LastBody { get; private set; }
+        public bool ShouldThrow { get; init; }
+
+        public Task SendEmailAsync(
+            string to,
+            string subject,
+            string body,
+            CancellationToken cancellationToken = default)
+        {
+            SendCount++;
+            LastTo = to;
+            LastSubject = subject;
+            LastBody = body;
+
+            if (ShouldThrow)
+            {
+                throw new InvalidOperationException("Simulated email failure.");
+            }
+
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class FakeUserRepository : IUserRepository
     {

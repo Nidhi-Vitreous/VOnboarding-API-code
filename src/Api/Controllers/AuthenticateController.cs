@@ -9,7 +9,9 @@ namespace Vitreous.Onboarding.Api.Controllers;
 
 [ApiController]
 [Route("authenticate")]
-public sealed class AuthenticateController(IAuthService authService) : ControllerBase
+public sealed class AuthenticateController(
+    IAuthService authService,
+    IPasswordResetService passwordResetService) : ControllerBase
 {
     [HttpGet("userName")]
     [AllowAnonymous]
@@ -115,5 +117,17 @@ public sealed class AuthenticateController(IAuthService authService) : Controlle
         {
             Message = "If an account exists for this email, username recovery instructions have been sent.",
         });
+    }
+
+    [HttpPost("forgotPassword")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(RecoveryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await passwordResetService.RequestPasswordResetAsync(request.Email, cancellationToken);
+        return Ok(response);
     }
 }

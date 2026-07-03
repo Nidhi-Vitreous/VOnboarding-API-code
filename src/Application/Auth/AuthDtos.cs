@@ -36,15 +36,9 @@ public sealed class UserNameResponse
 public sealed class RecoveryResponse
 {
     public string Message { get; set; } = string.Empty;
-    public string? RecoveryLink { get; set; }
 }
 
 public sealed class ForgotPasswordRequest
 {
     public string Email { get; set; } = string.Empty;
-}
-
-public sealed class ForgotPasswordResponse
-{
-    public string Message { get; set; } = string.Empty;
 }

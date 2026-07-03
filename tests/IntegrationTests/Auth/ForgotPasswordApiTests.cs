@@ -17,7 +17,7 @@ public class ForgotPasswordApiTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var body = await response.Content.ReadFromJsonAsync<ForgotPasswordResponse>();
+        var body = await response.Content.ReadFromJsonAsync<RecoveryResponse>();
         Assert.NotNull(body);
         Assert.Equal(PasswordResetService.SuccessMessage, body.Message);
     }
@@ -31,5 +31,5 @@ public class ForgotPasswordApiTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     private Task<HttpResponseMessage> PostForgotPasswordAsync(string email) =>
-        _client.PostAsJsonAsync("/api/v1/auth/forgot-password", new ForgotPasswordRequest { Email = email });
+        _client.PostAsJsonAsync("/api/v1/authenticate/forgotPassword", new ForgotPasswordRequest { Email = email });
 }
