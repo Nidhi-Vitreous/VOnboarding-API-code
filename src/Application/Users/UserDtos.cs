@@ -39,6 +39,8 @@ public sealed class UserProfileDto
     public string? Email { get; set; }
     public string Role { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
+    public IReadOnlyList<UserRoleDto> Roles { get; set; } = [];
+    public IReadOnlyList<string> Departments { get; set; } = [];
 }
 
 public static class UserPaging

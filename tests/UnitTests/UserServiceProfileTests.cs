@@ -81,7 +81,7 @@ public class UserServiceProfileTests
             Task.FromResult(User is not null && User.Id == id ? User : null);
 
         public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
+            Task.FromResult(User is not null && User.Id == id ? User : null);
 
         public Task<User?> GetByIdTrackedWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
