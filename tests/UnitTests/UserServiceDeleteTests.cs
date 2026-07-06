@@ -29,6 +29,25 @@ public class UserProtectionRulesTests
     }
 
     [Fact]
+    public void ValidateSuperAdminSelfDeactivateOnly_blocks_super_admin_from_deactivating_self()
+    {
+        var user = CreateUser("SUPER ADMIN");
+
+        var exception = Assert.Throws<BusinessRuleException>(() =>
+            UserProtectionRules.ValidateSuperAdminSelfDeactivateOnly(user, user, requestedIsActive: false));
+
+        Assert.Equal(UserMessages.CannotDeactivateSuperAdmin, exception.Message);
+    }
+
+    [Fact]
+    public void ValidateSuperAdminSelfDeactivateOnly_allows_super_admin_to_activate_self()
+    {
+        var user = CreateUser("SUPER ADMIN");
+
+        UserProtectionRules.ValidateSuperAdminSelfDeactivateOnly(user, user, requestedIsActive: true);
+    }
+
+    [Fact]
     public void ValidateDeletion_blocks_self_delete()
     {
         var user = CreateUser("Admin");
@@ -56,6 +75,47 @@ public class UserProtectionRulesTests
     {
         var actor = CreateUser("SUPER ADMIN");
         var target = CreateUser("Admin");
+
+        UserProtectionRules.ValidateDeletion(actor, target);
+    }
+
+    [Fact]
+    public void ValidateDeletion_blocks_admin_from_deleting_admin_target()
+    {
+        var actor = CreateUser("Admin");
+        var target = CreateUser("Admin");
+
+        var exception = Assert.Throws<BusinessRuleException>(() =>
+            UserProtectionRules.ValidateDeletion(actor, target));
+
+        Assert.Equal(UserMessages.CannotDeleteAdmin, exception.Message);
+    }
+
+    [Fact]
+    public void ValidateDeletion_blocks_admin_from_deleting_admin_assigned_via_roles()
+    {
+        var actor = CreateUser("Support");
+        var target = CreateUser("Support");
+        target.UserRoles.Add(new UserRole
+        {
+            Role = new Role { Name = "Admin" },
+        });
+
+        var exception = Assert.Throws<BusinessRuleException>(() =>
+            UserProtectionRules.ValidateDeletion(actor, target));
+
+        Assert.Equal(UserMessages.CannotDeleteAdmin, exception.Message);
+    }
+
+    [Fact]
+    public void ValidateDeletion_allows_super_admin_to_delete_admin_assigned_via_roles()
+    {
+        var actor = CreateUser("SUPER ADMIN");
+        var target = CreateUser("Support");
+        target.UserRoles.Add(new UserRole
+        {
+            Role = new Role { Name = "Admin" },
+        });
 
         UserProtectionRules.ValidateDeletion(actor, target);
     }
@@ -145,6 +205,25 @@ public class UserServiceDeleteTests
     }
 
     [Fact]
+    public async Task DeleteAsync_admin_cannot_delete_admin_user()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository
+        {
+            Actor = CreateUser(actorId, "Admin"),
+            Target = CreateUser(targetId, "Admin"),
+        };
+        var sut = CreateSut(userRepository);
+
+        var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            sut.DeleteAsync(targetId, actorId));
+
+        Assert.Equal(UserMessages.CannotDeleteAdmin, exception.Message);
+        Assert.False(userRepository.DeleteCalled);
+    }
+
+    [Fact]
     public async Task DeleteAsync_user_cannot_delete_own_account()
     {
         var userId = Guid.NewGuid();
@@ -168,6 +247,7 @@ public class UserServiceDeleteTests
             userRepository,
             new FakeRoleRepository(),
             new FakePasswordHasher(),
+            new FakePermissionAuthorizationService(),
             new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?> { ["Users:EmailDomain"] = "company.local" })
                 .Build());

@@ -33,6 +33,9 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get current user profile")]
+    [EndpointDescription(
+        "Returns the authenticated user's profile including assigned roles, departments, and granted system permissions.")]
     public async Task<IActionResult> GetMe(CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var userId))

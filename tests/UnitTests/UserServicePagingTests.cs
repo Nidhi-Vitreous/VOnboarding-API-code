@@ -64,6 +64,7 @@ public class UserServicePagingTests
             userRepository,
             new FakeRoleRepository(),
             new FakePasswordHasher(),
+            new FakePermissionAuthorizationService(),
             new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?> { ["Users:EmailDomain"] = "company.local" })
                 .Build());

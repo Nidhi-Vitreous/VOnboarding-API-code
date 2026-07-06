@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Users;
 using Vitreous.Onboarding.Domain.Entities;
@@ -49,6 +50,24 @@ public class UserServiceStatusTests
     }
 
     [Fact]
+    public async Task SetStatusAsync_super_admin_cannot_deactivate_self()
+    {
+        var userId = Guid.NewGuid();
+        var user = CreateUser(userId, isActive: true, role: "SUPER ADMIN");
+        var userRepository = new FakeUserRepository { User = user };
+        var sut = CreateSut(userRepository);
+
+        var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            sut.SetStatusAsync(
+                userId,
+                new UserStatusUpdateRequest { IsActive = false },
+                userId));
+
+        Assert.Equal(UserMessages.CannotDeactivateSuperAdmin, exception.Message);
+        Assert.False(userRepository.UpdateCalled);
+    }
+
+    [Fact]
     public async Task SetStatusAsync_activate_inactive_user_persists_and_returns_response()
     {
         var userId = Guid.NewGuid();
@@ -75,17 +94,18 @@ public class UserServiceStatusTests
             userRepository,
             new FakeRoleRepository(),
             new FakePasswordHasher(),
+            new FakePermissionAuthorizationService(),
             new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?> { ["Users:EmailDomain"] = "company.local" })
                 .Build());
 
-    private static User CreateUser(Guid id, bool isActive) => new()
+    private static User CreateUser(Guid id, bool isActive, string role = "Support") => new()
     {
         Id = id,
         Username = "jane",
         Email = "jane@example.com",
         PasswordHash = "hash",
-        Role = "Support",
+        Role = role,
         Department = "Ops",
         PhoneNumber = "+15550001111",
         IsActive = isActive,

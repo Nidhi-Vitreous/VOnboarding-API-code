@@ -332,6 +332,7 @@ public class UserServiceCreateTests
             userRepository,
             roleRepository,
             passwordHasher ?? new FakePasswordHasher(),
+            new FakePermissionAuthorizationService(),
             configuration ?? CreateConfiguration(DefaultEmailDomain));
 
     private sealed class FakeUserRepository : IUserRepository

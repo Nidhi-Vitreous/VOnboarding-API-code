@@ -18,30 +18,54 @@ public sealed class PermissionAuthorizationService(
         }
 
         var context = await departmentResolver.ResolveAsync(user, cancellationToken);
-        if (context.IsAdmin)
+        if (context.IsSuperAdmin)
         {
             return true;
+        }
+
+        var grantedPermissions = await GetGrantedSystemPermissionNamesAsync(user, cancellationToken);
+        return grantedPermissions.Contains(systemPermission.Trim(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    public async Task<IReadOnlyList<string>> GetGrantedSystemPermissionNamesAsync(
+        User user,
+        CancellationToken cancellationToken = default)
+    {
+        if (!user.IsActive)
+        {
+            return [];
+        }
+
+        var context = await departmentResolver.ResolveAsync(user, cancellationToken);
+        if (context.IsSuperAdmin)
+        {
+            return PermissionSystemNames.All;
         }
 
         var roles = await roleRepository.GetRolesWithPermissionsByUserIdAsync(user.Id, cancellationToken);
         if (roles.Count > 0)
         {
-            return roles.Any(role => role.RolePermissions.Any(assignment =>
-                string.Equals(assignment.Permission.SystemName, systemPermission.Trim(), StringComparison.OrdinalIgnoreCase)));
+            return roles
+                .SelectMany(role => role.RolePermissions)
+                .Select(assignment => assignment.Permission.SystemName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         if (string.IsNullOrWhiteSpace(user.Role))
         {
-            return false;
+            return [];
         }
 
-        var role = await roleRepository.GetRoleByNameAsync(user.Role, cancellationToken);
-        if (role is null)
+        var legacyRole = await roleRepository.GetRoleByNameAsync(user.Role, cancellationToken);
+        if (legacyRole is null)
         {
-            return false;
+            return [];
         }
 
-        return role.RolePermissions.Any(assignment =>
-            string.Equals(assignment.Permission.SystemName, systemPermission.Trim(), StringComparison.OrdinalIgnoreCase));
+        return legacyRole.RolePermissions
+            .Select(assignment => assignment.Permission.SystemName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 }

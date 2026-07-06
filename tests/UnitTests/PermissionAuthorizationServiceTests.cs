@@ -84,17 +84,55 @@ public class PermissionAuthorizationServiceTests
     }
 
     [Fact]
-    public async Task HasSystemPermissionAsync_returns_true_for_admin_bypass()
+    public async Task HasSystemPermissionAsync_returns_true_for_super_admin_bypass()
     {
         var sut = CreateSut(
             new FakeRoleRepository(),
-            new FakeDepartmentResolver { Context = new AuthorizationContext { Department = Domain.Enums.Department.Admin, IsAdmin = true, HasAdminOverrideFlag = false } });
+            new FakeDepartmentResolver
+            {
+                Context = new AuthorizationContext
+                {
+                    Department = Domain.Enums.Department.Admin,
+                    IsAdmin = true,
+                    IsSuperAdmin = true,
+                },
+            });
 
         var result = await sut.HasSystemPermissionAsync(
             CreateUser(Guid.NewGuid()),
             PermissionSystemNames.UsersDelete);
 
         Assert.True(result);
+    }
+
+    [Fact]
+    public async Task HasSystemPermissionAsync_does_not_bypass_for_admin_without_super_admin()
+    {
+        var userId = Guid.NewGuid();
+        var roleRepository = new FakeRoleRepository
+        {
+            RolesByUserId =
+            {
+                [userId] = [CreateRole("Admin", PermissionSystemNames.UsersRead)],
+            },
+        };
+        var sut = CreateSut(
+            roleRepository,
+            new FakeDepartmentResolver
+            {
+                Context = new AuthorizationContext
+                {
+                    Department = Domain.Enums.Department.Admin,
+                    IsAdmin = true,
+                    IsSuperAdmin = false,
+                },
+            });
+
+        var result = await sut.HasSystemPermissionAsync(
+            CreateUser(userId, roleName: "Admin"),
+            PermissionSystemNames.UsersDelete);
+
+        Assert.False(result);
     }
 
     [Fact]
@@ -138,6 +176,50 @@ public class PermissionAuthorizationServiceTests
             PermissionSystemNames.UsersUpdate);
 
         Assert.False(result);
+    }
+
+    [Fact]
+    public async Task GetGrantedSystemPermissionNamesAsync_returns_all_permissions_for_super_admin()
+    {
+        var sut = CreateSut(
+            new FakeRoleRepository(),
+            new FakeDepartmentResolver
+            {
+                Context = new AuthorizationContext
+                {
+                    Department = Domain.Enums.Department.Admin,
+                    IsAdmin = true,
+                    IsSuperAdmin = true,
+                },
+            });
+
+        var result = await sut.GetGrantedSystemPermissionNamesAsync(CreateUser(Guid.NewGuid()));
+
+        Assert.Equal(PermissionSystemNames.All, result);
+    }
+
+    [Fact]
+    public async Task GetGrantedSystemPermissionNamesAsync_returns_distinct_permissions_from_assigned_roles()
+    {
+        var userId = Guid.NewGuid();
+        var roleRepository = new FakeRoleRepository
+        {
+            RolesByUserId =
+            {
+                [userId] =
+                [
+                    CreateRole("Role One", PermissionSystemNames.UsersRead),
+                    CreateRole("Role Two", PermissionSystemNames.UsersUpdate, PermissionSystemNames.UsersRead),
+                ],
+            },
+        };
+        var sut = CreateSut(roleRepository);
+
+        var result = await sut.GetGrantedSystemPermissionNamesAsync(CreateUser(userId, roleName: "Role One"));
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(PermissionSystemNames.UsersRead, result);
+        Assert.Contains(PermissionSystemNames.UsersUpdate, result);
     }
 
     private static PermissionAuthorizationService CreateSut(
@@ -260,7 +342,7 @@ public class PermissionAuthorizationServiceTests
         {
             Department = Domain.Enums.Department.Support,
             IsAdmin = false,
-            HasAdminOverrideFlag = false,
+            IsSuperAdmin = false,
         };
 
         public Task<AuthorizationContext> ResolveAsync(User user, CancellationToken cancellationToken = default) =>

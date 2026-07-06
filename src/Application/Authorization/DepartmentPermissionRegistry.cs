@@ -167,6 +167,10 @@ public static class DepartmentPermissionRegistry
     public static bool IsSuperAdminRoleName(string? roleName) =>
         !string.IsNullOrWhiteSpace(roleName) && SuperAdminRoleNames.Contains(roleName.Trim());
 
+    public static bool IsNonSuperAdminAdminRoleName(string? roleName) =>
+        !string.IsNullOrWhiteSpace(roleName)
+        && string.Equals(roleName.Trim(), "Admin", StringComparison.OrdinalIgnoreCase);
+
     public static bool IsAdminRoleName(string? roleName) =>
         !string.IsNullOrWhiteSpace(roleName) && AdminRoleNames.Contains(roleName.Trim());
 

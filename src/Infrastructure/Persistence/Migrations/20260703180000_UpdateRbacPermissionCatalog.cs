@@ -1,9 +1,13 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Vitreous.Onboarding.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace Vitreous.Onboarding.Infrastructure.Persistence.Migrations;
 
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20260703180000_UpdateRbacPermissionCatalog")]
 /// <inheritdoc />
 public partial class UpdateRbacPermissionCatalog : Migration
 {

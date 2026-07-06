@@ -21,6 +21,7 @@ public static class DatabaseInitializer
         await dbContext.Database.MigrateAsync(cancellationToken);
         await SeedDepartmentsAsync(dbContext, logger, cancellationToken);
         await SeedPermissionsAsync(dbContext, logger, cancellationToken);
+        await CleanupStalePermissionsAsync(dbContext, logger, cancellationToken);
 
         var environmentName = configuration["ASPNETCORE_ENVIRONMENT"];
         if (string.Equals(environmentName, "Production", StringComparison.OrdinalIgnoreCase))
@@ -52,6 +53,10 @@ public static class DatabaseInitializer
         }
 
         var now = DateTime.UtcNow;
+        var superAdminRole = await dbContext.Roles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Name == "SUPER ADMIN", cancellationToken);
+
         var adminUser = new User
         {
             Id = Guid.NewGuid(),
@@ -59,7 +64,7 @@ public static class DatabaseInitializer
             Email = "admin@vitreous.local",
             FullName = "System Administrator",
             PasswordHash = passwordHasher.Hash(adminPassword),
-            Role = "Admin",
+            Role = superAdminRole?.Name ?? "SUPER ADMIN",
             Department = "Admin",
             IsActive = true,
             CreatedAt = now,
@@ -67,9 +72,22 @@ public static class DatabaseInitializer
         };
 
         dbContext.Users.Add(adminUser);
+
+        if (superAdminRole is not null)
+        {
+            dbContext.UserRoles.Add(new UserRole
+            {
+                UserId = adminUser.Id,
+                RoleId = superAdminRole.Id,
+            });
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Seeded default admin user (username: {Username}).", adminUsername);
+        logger.LogInformation(
+            "Seeded default super admin user (username: {Username}, role: {Role}).",
+            adminUsername,
+            adminUser.Role);
     }
 
     private static async Task SeedDepartmentsAsync(
@@ -134,6 +152,32 @@ public static class DatabaseInitializer
 
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Synchronized {Count} permission definitions.", PermissionSeedData.DefaultPermissions.Length);
+    }
+
+    private static async Task CleanupStalePermissionsAsync(
+        ApplicationDbContext dbContext,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var stalePermissions = await dbContext.Permissions
+            .Where(permission => permission.SystemName.StartsWith("onboarding."))
+            .ToListAsync(cancellationToken);
+
+        if (stalePermissions.Count == 0)
+        {
+            return;
+        }
+
+        var stalePermissionIds = stalePermissions.Select(permission => permission.Id).ToList();
+        var staleRolePermissions = await dbContext.RolePermissions
+            .Where(rolePermission => stalePermissionIds.Contains(rolePermission.PermissionId))
+            .ToListAsync(cancellationToken);
+
+        dbContext.RolePermissions.RemoveRange(staleRolePermissions);
+        dbContext.Permissions.RemoveRange(stalePermissions);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Removed {Count} stale onboarding permissions.", stalePermissions.Count);
     }
 
     private static void SyncPermission(Permission permission, PermissionSeedData.PermissionSeedEntry seedPermission)

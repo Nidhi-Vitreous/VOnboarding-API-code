@@ -242,7 +242,7 @@ public class UserServiceUpdateTests
     private static UserService CreateSut(
         FakeUserRepository userRepository,
         FakeRoleRepository? roleRepository = null) =>
-        new(userRepository, roleRepository ?? new FakeRoleRepository(), new FakePasswordHasher(), CreateUserServiceConfiguration());
+        new(userRepository, roleRepository ?? new FakeRoleRepository(), new FakePasswordHasher(), new FakePermissionAuthorizationService(), CreateUserServiceConfiguration());
 
     [Fact]
     public async Task UpdateAsync_admin_cannot_edit_super_admin()

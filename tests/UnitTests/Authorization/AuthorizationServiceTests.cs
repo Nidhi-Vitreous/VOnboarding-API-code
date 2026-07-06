@@ -58,13 +58,23 @@ public class AuthorizationServiceTests
     private readonly AuthorizationService _authorizationService = new(new StubDepartmentResolver());
 
     [Fact]
-    public async Task Admin_user_bypasses_permission_checks()
+    public async Task Super_admin_user_bypasses_onboarding_permission_checks()
     {
-        var user = new User { Id = Guid.NewGuid(), Role = "Admin", IsActive = true };
+        var user = new User { Id = Guid.NewGuid(), Role = "SUPER ADMIN", IsActive = true };
 
         Assert.True(await _authorizationService.CanApproveAsync(user));
         Assert.True(await _authorizationService.CanCreateOnboardingAsync(user));
         Assert.True(await _authorizationService.IsAdminAsync(user));
+    }
+
+    [Fact]
+    public async Task Non_super_admin_user_is_limited_to_department_onboarding_permissions()
+    {
+        var user = new User { Id = Guid.NewGuid(), Role = "Support", IsActive = true };
+
+        Assert.False(await _authorizationService.CanApproveAsync(user));
+        Assert.False(await _authorizationService.CanCreateOnboardingAsync(user));
+        Assert.False(await _authorizationService.IsAdminAsync(user));
     }
 
     [Fact]
@@ -89,11 +99,12 @@ public class AuthorizationServiceTests
         public Task<AuthorizationContext> ResolveAsync(User user, CancellationToken cancellationToken = default)
         {
             var isAdmin = DepartmentPermissionRegistry.IsAdminRoleName(user.Role);
+            var isSuperAdmin = DepartmentPermissionRegistry.IsSuperAdminRoleName(user.Role);
             return Task.FromResult(new AuthorizationContext
             {
                 Department = isAdmin ? DepartmentEnum.Admin : DepartmentPermissionRegistry.ResolveDepartment(user.Role, user.Role),
                 IsAdmin = isAdmin,
-                HasAdminOverrideFlag = false,
+                IsSuperAdmin = isSuperAdmin,
             });
         }
     }

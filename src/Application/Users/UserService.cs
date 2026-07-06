@@ -12,6 +12,7 @@ public sealed class UserService(
     IUserRepository userRepository,
     IRoleRepository roleRepository,
     IPasswordHasher passwordHasher,
+    IPermissionAuthorizationService permissionAuthorizationService,
     IConfiguration configuration) : IUserService
 {
     private const int MaxUsernameLength = 128;
@@ -23,7 +24,13 @@ public sealed class UserService(
     public async Task<UserProfileDto?> GetProfileAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var user = await userRepository.GetByIdWithRolesAsync(id, cancellationToken);
-        return user is null ? null : MapToProfile(user);
+        if (user is null)
+        {
+            return null;
+        }
+
+        var permissions = await permissionAuthorizationService.GetGrantedSystemPermissionNamesAsync(user, cancellationToken);
+        return MapToProfile(user, permissions);
     }
 
     public async Task<UserDetailDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -169,6 +176,7 @@ public sealed class UserService(
             return null;
         }
 
+        UserProtectionRules.ValidateSuperAdminSelfDeactivateOnly(actor, user, request.IsActive);
         UserProtectionRules.ValidateSuperAdminSelfServiceOnly(actor, user);
 
         user.IsActive = request.IsActive;
@@ -221,7 +229,7 @@ public sealed class UserService(
         Roles = MapToRoleDtosFromUserRoles(user),
     };
 
-    internal static UserProfileDto MapToProfile(User user) => new()
+    internal static UserProfileDto MapToProfile(User user, IReadOnlyList<string> permissions) => new()
     {
         Id = user.Id,
         FullName = user.FullName ?? user.Username,
@@ -231,6 +239,7 @@ public sealed class UserService(
         PhoneNumber = user.PhoneNumber,
         Roles = MapToRoleDtosFromUserRoles(user),
         Departments = MapToDistinctDepartmentNames(user),
+        Permissions = permissions,
     };
 
     internal static UserDetailDto MapToDetail(User user) => new()

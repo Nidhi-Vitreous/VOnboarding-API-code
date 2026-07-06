@@ -44,6 +44,31 @@ public class UserServiceProfileTests
     }
 
     [Fact]
+    public async Task GetProfileAsync_existing_user_includes_granted_permissions()
+    {
+        var userId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = userId,
+            Username = "admin",
+            FullName = "System Administrator",
+            Email = "admin@example.com",
+            Role = "Admin",
+            IsActive = true,
+        };
+        var permissionService = new FakePermissionAuthorizationService
+        {
+            GrantedPermissions = ["users.read", "users.update"],
+        };
+        var sut = CreateSut(new FakeUserRepository { User = user }, permissionService);
+
+        var result = await sut.GetProfileAsync(userId);
+
+        Assert.NotNull(result);
+        Assert.Equal(["users.read", "users.update"], result.Permissions);
+    }
+
+    [Fact]
     public async Task GetProfileAsync_missing_full_name_falls_back_to_username()
     {
         var userId = Guid.NewGuid();
@@ -64,11 +89,14 @@ public class UserServiceProfileTests
         Assert.Equal("jdoe", result.UserName);
     }
 
-    private static UserService CreateSut(FakeUserRepository userRepository) =>
+    private static UserService CreateSut(
+        FakeUserRepository userRepository,
+        FakePermissionAuthorizationService? permissionService = null) =>
         new(
             userRepository,
             new FakeRoleRepository(),
             new FakePasswordHasher(),
+            permissionService ?? new FakePermissionAuthorizationService(),
             new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?> { ["Users:EmailDomain"] = "company.local" })
                 .Build());
