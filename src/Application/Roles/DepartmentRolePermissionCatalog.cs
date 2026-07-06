@@ -43,6 +43,22 @@ public static class DepartmentRolePermissionCatalog
         PermissionSystemNames.DashboardView,
     ];
 
+    private static readonly string[] MerchantApplicationPermissions =
+    [
+        PermissionSystemNames.MerchantApplicationApprove,
+        PermissionSystemNames.MerchantApplicationReject,
+        PermissionSystemNames.MerchantApplicationHold,
+        PermissionSystemNames.MerchantApplicationComplete,
+    ];
+
+    private static readonly string[] MerchantOrderPermissions =
+    [
+        PermissionSystemNames.MerchantOrderApprove,
+        PermissionSystemNames.MerchantOrderReject,
+        PermissionSystemNames.MerchantOrderHold,
+        PermissionSystemNames.MerchantOrderComplete,
+    ];
+
     private static readonly string[] AllOnboardingPermissions =
         DepartmentPermissionRegistry.GetAllOnboardingPermissionNames().ToArray();
 
@@ -50,10 +66,13 @@ public static class DepartmentRolePermissionCatalog
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
             ["Sales"] = Combine(SalesMerchantPermissions, OnboardingFor("Sales")),
-            ["Filing"] = OnboardingFor("Filing"),
-            ["Terminal"] = OnboardingFor("Terminal"),
+            ["Filing"] = Combine(
+                OnboardingFor("Filing"),
+                MerchantApplicationPermissions,
+                MerchantOrderPermissions),
+            ["Terminal"] = Combine(OnboardingFor("Terminal"), MerchantOrderPermissions),
             ["Billing"] = OnboardingFor("Billing"),
-            ["Shipping"] = OnboardingFor("Shipping"),
+            ["Shipping"] = Combine(OnboardingFor("Shipping"), MerchantOrderPermissions),
             ["Support"] = OnboardingFor("Support"),
             ["Installation"] = OnboardingFor("Installation"),
             ["Admin"] = Combine(
@@ -80,6 +99,8 @@ public static class DepartmentRolePermissionCatalog
         var groups = new List<DepartmentPermissionGroupDefinition>();
 
         AddGroup(groups, "merchant", "Merchant", MerchantPermissions, allowed);
+        AddGroup(groups, "merchant-application", "Merchant Application", MerchantApplicationPermissions, allowed);
+        AddGroup(groups, "merchant-order", "Merchant Order", MerchantOrderPermissions, allowed);
         AddGroup(groups, "roles", "Roles", RoleManagementPermissions, allowed);
         AddGroup(groups, "users", "Users", UserManagementPermissions, allowed);
         AddGroup(groups, "dashboard", "Dashboard", DashboardPermissions, allowed);

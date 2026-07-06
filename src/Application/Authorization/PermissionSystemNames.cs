@@ -19,6 +19,14 @@ public static class PermissionSystemNames
     public const string MerchantCreate = "merchant.create";
     public const string MerchantUpdate = "merchant.update";
     public const string MerchantDelete = "merchant.delete";
+    public const string MerchantApplicationApprove = "merchant.application.approve";
+    public const string MerchantApplicationReject = "merchant.application.reject";
+    public const string MerchantApplicationHold = "merchant.application.hold";
+    public const string MerchantApplicationComplete = "merchant.application.complete";
+    public const string MerchantOrderApprove = "merchant.order.approve";
+    public const string MerchantOrderReject = "merchant.order.reject";
+    public const string MerchantOrderHold = "merchant.order.hold";
+    public const string MerchantOrderComplete = "merchant.order.complete";
 
     public const string DashboardView = "dashboard.view";
 
@@ -39,6 +47,10 @@ public static class PermissionSystemNames
         UsersRead, UsersCreate, UsersUpdate, UsersDelete,
         RolesRead, RolesCreate, RolesUpdate, RolesDelete,
         MerchantRead, MerchantCreate, MerchantUpdate, MerchantDelete,
+        MerchantApplicationApprove, MerchantApplicationReject,
+        MerchantApplicationHold, MerchantApplicationComplete,
+        MerchantOrderApprove, MerchantOrderReject,
+        MerchantOrderHold, MerchantOrderComplete,
         DashboardView,
         OnboardingRead, OnboardingCreate, OnboardingRefile, OnboardingApprove,
         OnboardingReject, OnboardingHold, OnboardingResume, OnboardingBlock,

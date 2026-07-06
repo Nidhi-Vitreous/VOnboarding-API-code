@@ -3,7 +3,7 @@ using Vitreous.Onboarding.Domain.Enums;
 namespace Vitreous.Onboarding.Application.Authorization;
 
 /// <summary>
-/// RBAC matrix mapping departments to onboarding permissions.
+/// RBAC matrix mapping departments to onboarding and merchant workflow permissions.
 /// </summary>
 public static class DepartmentPermissionRegistry
 {
@@ -21,6 +21,19 @@ public static class DepartmentPermissionRegistry
             [OnboardingPermission.Submit] = "onboarding.submit",
             [OnboardingPermission.Resolve] = "onboarding.resolve",
             [OnboardingPermission.InitiateBlock] = "onboarding.block.initiate",
+        };
+
+    private static readonly IReadOnlyDictionary<MerchantWorkflowPermission, string> MerchantWorkflowPermissionNames =
+        new Dictionary<MerchantWorkflowPermission, string>
+        {
+            [MerchantWorkflowPermission.ApproveApplication] = PermissionSystemNames.MerchantApplicationApprove,
+            [MerchantWorkflowPermission.RejectApplication] = PermissionSystemNames.MerchantApplicationReject,
+            [MerchantWorkflowPermission.HoldApplication] = PermissionSystemNames.MerchantApplicationHold,
+            [MerchantWorkflowPermission.CompleteApplication] = PermissionSystemNames.MerchantApplicationComplete,
+            [MerchantWorkflowPermission.ApproveOrder] = PermissionSystemNames.MerchantOrderApprove,
+            [MerchantWorkflowPermission.RejectOrder] = PermissionSystemNames.MerchantOrderReject,
+            [MerchantWorkflowPermission.HoldOrder] = PermissionSystemNames.MerchantOrderHold,
+            [MerchantWorkflowPermission.CompleteOrder] = PermissionSystemNames.MerchantOrderComplete,
         };
 
     private static readonly IReadOnlyDictionary<Department, HashSet<OnboardingPermission>> PermissionMap =
@@ -59,6 +72,37 @@ public static class DepartmentPermissionRegistry
             [Department.Support] = [OnboardingPermission.Read],
             [Department.Installation] = [OnboardingPermission.Read],
             [Department.Admin] = Enum.GetValues<OnboardingPermission>().ToHashSet(),
+        };
+
+    private static readonly IReadOnlyDictionary<Department, HashSet<MerchantWorkflowPermission>> MerchantWorkflowPermissionMap =
+        new Dictionary<Department, HashSet<MerchantWorkflowPermission>>
+        {
+            [Department.Filing] =
+            [
+                MerchantWorkflowPermission.ApproveApplication,
+                MerchantWorkflowPermission.RejectApplication,
+                MerchantWorkflowPermission.HoldApplication,
+                MerchantWorkflowPermission.CompleteApplication,
+                MerchantWorkflowPermission.ApproveOrder,
+                MerchantWorkflowPermission.RejectOrder,
+                MerchantWorkflowPermission.HoldOrder,
+                MerchantWorkflowPermission.CompleteOrder,
+            ],
+            [Department.Terminal] =
+            [
+                MerchantWorkflowPermission.ApproveOrder,
+                MerchantWorkflowPermission.RejectOrder,
+                MerchantWorkflowPermission.HoldOrder,
+                MerchantWorkflowPermission.CompleteOrder,
+            ],
+            [Department.Shipping] =
+            [
+                MerchantWorkflowPermission.ApproveOrder,
+                MerchantWorkflowPermission.RejectOrder,
+                MerchantWorkflowPermission.HoldOrder,
+                MerchantWorkflowPermission.CompleteOrder,
+            ],
+            [Department.Admin] = Enum.GetValues<MerchantWorkflowPermission>().ToHashSet(),
         };
 
     private static readonly IReadOnlyDictionary<string, Department> RoleTypeDepartmentMap =
@@ -129,6 +173,17 @@ public static class DepartmentPermissionRegistry
         return PermissionMap.TryGetValue(department, out var permissions) && permissions.Contains(permission);
     }
 
+    public static bool HasMerchantWorkflowPermission(Department department, MerchantWorkflowPermission permission)
+    {
+        if (department == Department.Admin)
+        {
+            return true;
+        }
+
+        return MerchantWorkflowPermissionMap.TryGetValue(department, out var permissions)
+            && permissions.Contains(permission);
+    }
+
     public static IReadOnlyList<string> GetAllOnboardingPermissionNames() =>
         Enum.GetValues<OnboardingPermission>()
             .Select(permission => OnboardingPermissionNames[permission])
@@ -153,4 +208,24 @@ public static class DepartmentPermissionRegistry
 
     public static IReadOnlyList<string> GetOnboardingPermissionNamesForDepartmentName(string departmentName) =>
         GetOnboardingPermissionNames(ResolveDepartmentByName(departmentName));
+
+    public static IReadOnlyList<string> GetMerchantWorkflowPermissionNames(Department department)
+    {
+        if (department == Department.Admin)
+        {
+            return MerchantWorkflowPermissionNames.Values.ToList();
+        }
+
+        if (!MerchantWorkflowPermissionMap.TryGetValue(department, out var permissions))
+        {
+            return [];
+        }
+
+        return permissions
+            .Select(permission => MerchantWorkflowPermissionNames[permission])
+            .ToList();
+    }
+
+    public static IReadOnlyList<string> GetMerchantWorkflowPermissionNamesForDepartmentName(string departmentName) =>
+        GetMerchantWorkflowPermissionNames(ResolveDepartmentByName(departmentName));
 }
