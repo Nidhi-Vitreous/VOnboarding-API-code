@@ -332,6 +332,7 @@ public class UserServiceCreateTests
             userRepository,
             roleRepository,
             passwordHasher ?? new FakePasswordHasher(),
+            new FakePermissionAuthorizationService(),
             configuration ?? CreateConfiguration(DefaultEmailDomain));
 
     private sealed class FakeUserRepository : IUserRepository
@@ -405,6 +406,9 @@ public class UserServiceCreateTests
             IEnumerable<string> roleNames,
             CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
+
+        public Task DeleteAsync(User user, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeRoleRepository : IRoleRepository

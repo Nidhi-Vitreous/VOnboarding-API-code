@@ -41,6 +41,11 @@ public sealed class UserProfileDto
     public string? PhoneNumber { get; set; }
     public IReadOnlyList<UserRoleDto> Roles { get; set; } = [];
     public IReadOnlyList<string> Departments { get; set; } = [];
+
+    /// <summary>
+    /// Granted system permission names for the current user (e.g. users.read). Super Admin receives the full catalog.
+    /// </summary>
+    public IReadOnlyList<string> Permissions { get; set; } = [];
 }
 
 public static class UserPaging

@@ -185,6 +185,9 @@ public class RoleServicePagingTests
 
         public Task<bool> RoleNameInUseAsync(string roleName, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
+
+        public Task DeleteAsync(User user, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeDepartmentRepository : IDepartmentRepository

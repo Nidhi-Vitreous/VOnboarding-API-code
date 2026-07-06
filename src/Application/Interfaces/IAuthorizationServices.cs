@@ -29,4 +29,8 @@ public interface IAuthorizationService
 public interface IPermissionAuthorizationService
 {
     Task<bool> HasSystemPermissionAsync(User user, string systemPermission, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<string>> GetGrantedSystemPermissionNamesAsync(
+        User user,
+        CancellationToken cancellationToken = default);
 }

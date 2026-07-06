@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Vitreous.Onboarding.Api.Authorization;
 using Vitreous.Onboarding.Application.Authorization;
 using Vitreous.Onboarding.Application.Common;
-using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Roles;
 

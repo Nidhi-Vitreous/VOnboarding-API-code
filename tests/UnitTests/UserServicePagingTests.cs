@@ -64,6 +64,7 @@ public class UserServicePagingTests
             userRepository,
             new FakeRoleRepository(),
             new FakePasswordHasher(),
+            new FakePermissionAuthorizationService(),
             new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?> { ["Users:EmailDomain"] = "company.local" })
                 .Build());
@@ -131,6 +132,9 @@ public class UserServicePagingTests
             IEnumerable<string> roleNames,
             CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
+
+        public Task DeleteAsync(User user, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeRoleRepository : IRoleRepository

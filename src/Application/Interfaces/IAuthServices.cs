@@ -22,6 +22,7 @@ public interface IUserRepository
     Task<bool> UsernameExistsAsync(string username, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
     Task<bool> EmailExistsAsync(string email, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
     Task<bool> RoleNameInUseAsync(string roleName, CancellationToken cancellationToken = default);
+    Task DeleteAsync(User user, CancellationToken cancellationToken = default);
     Task<IReadOnlyDictionary<string, int>> GetActiveUserCountsByRoleNamesAsync(
         IEnumerable<string> roleNames,
         CancellationToken cancellationToken = default);
@@ -58,8 +59,17 @@ public interface IUserService
         string? search = null,
         CancellationToken cancellationToken = default);
     Task<UserDetailDto> CreateAsync(UserCreateRequest request, CancellationToken cancellationToken = default);
-    Task<UserDetailDto?> UpdateAsync(Guid id, UserUpdateRequest request, CancellationToken cancellationToken = default);
-    Task<UserStatusResponse?> SetStatusAsync(Guid id, UserStatusUpdateRequest request, CancellationToken cancellationToken = default);
+    Task<UserDetailDto?> UpdateAsync(
+        Guid id,
+        UserUpdateRequest request,
+        Guid actorId,
+        CancellationToken cancellationToken = default);
+    Task<UserStatusResponse?> SetStatusAsync(
+        Guid id,
+        UserStatusUpdateRequest request,
+        Guid actorId,
+        CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(Guid id, Guid actorId, CancellationToken cancellationToken = default);
 }
 
 public interface IAuthService

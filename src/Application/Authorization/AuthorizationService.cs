@@ -33,7 +33,7 @@ public sealed class AuthorizationService(IDepartmentResolver departmentResolver)
         CancellationToken cancellationToken = default) =>
         EvaluateAsync(
             user,
-            context => context.IsAdmin || DepartmentPermissionRegistry.HasPermission(context.Department, permission),
+            context => context.IsSuperAdmin || DepartmentPermissionRegistry.HasPermission(context.Department, permission),
             cancellationToken);
 
     public Task<bool> CanSetStatusAsync(

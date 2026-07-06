@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Application.Users;
 using Vitreous.Onboarding.Domain.Entities;
@@ -10,12 +11,17 @@ public class UserServiceStatusTests
     [Fact]
     public async Task SetStatusAsync_unknown_id_returns_null_without_persisting()
     {
-        var userRepository = new FakeUserRepository();
+        var actorId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository
+        {
+            User = CreateUser(actorId, isActive: true),
+        };
         var sut = CreateSut(userRepository);
 
         var result = await sut.SetStatusAsync(
             Guid.NewGuid(),
-            new UserStatusUpdateRequest { IsActive = false });
+            new UserStatusUpdateRequest { IsActive = false },
+            actorId);
 
         Assert.Null(result);
         Assert.False(userRepository.UpdateCalled);
@@ -31,7 +37,8 @@ public class UserServiceStatusTests
 
         var result = await sut.SetStatusAsync(
             userId,
-            new UserStatusUpdateRequest { IsActive = false });
+            new UserStatusUpdateRequest { IsActive = false },
+            userId);
 
         Assert.NotNull(result);
         Assert.Equal(userId, result.Id);
@@ -40,6 +47,24 @@ public class UserServiceStatusTests
         Assert.NotNull(userRepository.LastUpdatedUser);
         Assert.False(userRepository.LastUpdatedUser!.IsActive);
         Assert.Equal(result.UpdatedAt, userRepository.LastUpdatedUser.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task SetStatusAsync_super_admin_cannot_deactivate_self()
+    {
+        var userId = Guid.NewGuid();
+        var user = CreateUser(userId, isActive: true, role: "SUPER ADMIN");
+        var userRepository = new FakeUserRepository { User = user };
+        var sut = CreateSut(userRepository);
+
+        var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            sut.SetStatusAsync(
+                userId,
+                new UserStatusUpdateRequest { IsActive = false },
+                userId));
+
+        Assert.Equal(UserMessages.CannotDeactivateSuperAdmin, exception.Message);
+        Assert.False(userRepository.UpdateCalled);
     }
 
     [Fact]
@@ -52,7 +77,8 @@ public class UserServiceStatusTests
 
         var result = await sut.SetStatusAsync(
             userId,
-            new UserStatusUpdateRequest { IsActive = true });
+            new UserStatusUpdateRequest { IsActive = true },
+            userId);
 
         Assert.NotNull(result);
         Assert.Equal(userId, result.Id);
@@ -68,17 +94,18 @@ public class UserServiceStatusTests
             userRepository,
             new FakeRoleRepository(),
             new FakePasswordHasher(),
+            new FakePermissionAuthorizationService(),
             new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?> { ["Users:EmailDomain"] = "company.local" })
                 .Build());
 
-    private static User CreateUser(Guid id, bool isActive) => new()
+    private static User CreateUser(Guid id, bool isActive, string role = "Support") => new()
     {
         Id = id,
         Username = "jane",
         Email = "jane@example.com",
         PasswordHash = "hash",
-        Role = "Support",
+        Role = role,
         Department = "Ops",
         PhoneNumber = "+15550001111",
         IsActive = isActive,
@@ -95,8 +122,15 @@ public class UserServiceStatusTests
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(User is not null && User.Id == id ? User : null);
 
-        public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
+        public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (User is not null && User.Id == id)
+            {
+                return Task.FromResult<User?>(User);
+            }
+
+            return Task.FromResult<User?>(null);
+        }
 
         public Task<User?> GetByIdTrackedWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
@@ -146,6 +180,9 @@ public class UserServiceStatusTests
             IEnumerable<string> roleNames,
             CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
+
+        public Task DeleteAsync(User user, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeRoleRepository : IRoleRepository

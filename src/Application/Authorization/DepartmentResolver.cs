@@ -15,10 +15,16 @@ public sealed class DepartmentResolver(IRoleRepository roleRepository) : IDepart
             ? DepartmentPermissionRegistry.ResolveDepartmentByName(departmentName)
             : DepartmentPermissionRegistry.ResolveDepartment(user.Role, role?.RoleType);
 
-        var hasAdminOverrideFlag = role?.IsSystemRole == true;
+        var assignedRoles = await roleRepository.GetRolesWithPermissionsByUserIdAsync(user.Id, cancellationToken);
+
+        var isSuperAdmin = DepartmentPermissionRegistry.IsSuperAdminRoleName(user.Role)
+            || assignedRoles.Any(assignedRole =>
+                DepartmentPermissionRegistry.IsSuperAdminRoleName(assignedRole.Name)
+                || assignedRole.IsSystemRole);
+
         var isAdmin = DepartmentPermissionRegistry.IsAdminDepartment(department)
-            || hasAdminOverrideFlag
-            || DepartmentPermissionRegistry.IsAdminRoleName(user.Role);
+            || DepartmentPermissionRegistry.IsAdminRoleName(user.Role)
+            || assignedRoles.Any(assignedRole => DepartmentPermissionRegistry.IsAdminRoleName(assignedRole.Name));
 
         if (isAdmin)
         {
@@ -29,7 +35,7 @@ public sealed class DepartmentResolver(IRoleRepository roleRepository) : IDepart
         {
             Department = department,
             IsAdmin = isAdmin,
-            HasAdminOverrideFlag = hasAdminOverrideFlag,
+            IsSuperAdmin = isSuperAdmin,
         };
     }
 }

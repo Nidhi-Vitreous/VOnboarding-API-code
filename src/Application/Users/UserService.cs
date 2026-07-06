@@ -12,6 +12,7 @@ public sealed class UserService(
     IUserRepository userRepository,
     IRoleRepository roleRepository,
     IPasswordHasher passwordHasher,
+    IPermissionAuthorizationService permissionAuthorizationService,
     IConfiguration configuration) : IUserService
 {
     private const int MaxUsernameLength = 128;
@@ -23,7 +24,13 @@ public sealed class UserService(
     public async Task<UserProfileDto?> GetProfileAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var user = await userRepository.GetByIdWithRolesAsync(id, cancellationToken);
-        return user is null ? null : MapToProfile(user);
+        if (user is null)
+        {
+            return null;
+        }
+
+        var permissions = await permissionAuthorizationService.GetGrantedSystemPermissionNamesAsync(user, cancellationToken);
+        return MapToProfile(user, permissions);
     }
 
     public async Task<UserDetailDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -110,14 +117,22 @@ public sealed class UserService(
     public async Task<UserDetailDto?> UpdateAsync(
         Guid id,
         UserUpdateRequest request,
+        Guid actorId,
         CancellationToken cancellationToken = default)
     {
+        var actor = await userRepository.GetByIdWithRolesAsync(actorId, cancellationToken);
+        if (actor is null)
+        {
+            throw new BusinessRuleException(UserMessages.ActorNotFound);
+        }
+
         var user = await userRepository.GetByIdTrackedWithRolesAsync(id, cancellationToken);
         if (user is null)
         {
             return null;
         }
 
+        UserProtectionRules.ValidateSuperAdminSelfServiceOnly(actor, user);
         UserValidation.ValidateUpdateRequest(request);
         var resolvedRoles = await ResolveRolesAsync(request.RoleIds, cancellationToken);
 
@@ -146,13 +161,23 @@ public sealed class UserService(
     public async Task<UserStatusResponse?> SetStatusAsync(
         Guid id,
         UserStatusUpdateRequest request,
+        Guid actorId,
         CancellationToken cancellationToken = default)
     {
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        var actor = await userRepository.GetByIdWithRolesAsync(actorId, cancellationToken);
+        if (actor is null)
+        {
+            throw new BusinessRuleException(UserMessages.ActorNotFound);
+        }
+
+        var user = await userRepository.GetByIdWithRolesAsync(id, cancellationToken);
         if (user is null)
         {
             return null;
         }
+
+        UserProtectionRules.ValidateSuperAdminSelfDeactivateOnly(actor, user, request.IsActive);
+        UserProtectionRules.ValidateSuperAdminSelfServiceOnly(actor, user);
 
         user.IsActive = request.IsActive;
         user.UpdatedAt = DateTime.UtcNow;
@@ -164,6 +189,29 @@ public sealed class UserService(
             IsActive = user.IsActive,
             UpdatedAt = user.UpdatedAt,
         };
+    }
+
+    public async Task<bool> DeleteAsync(
+        Guid id,
+        Guid actorId,
+        CancellationToken cancellationToken = default)
+    {
+        var actor = await userRepository.GetByIdWithRolesAsync(actorId, cancellationToken);
+        if (actor is null)
+        {
+            throw new BusinessRuleException(UserMessages.ActorNotFound);
+        }
+
+        var target = await userRepository.GetByIdTrackedWithRolesAsync(id, cancellationToken);
+        if (target is null)
+        {
+            return false;
+        }
+
+        UserProtectionRules.ValidateDeletion(actor, target);
+        await userRepository.DeleteAsync(target, cancellationToken);
+
+        return true;
     }
 
     internal static UserSummaryDto MapToSummary(User user) => new()
@@ -181,7 +229,7 @@ public sealed class UserService(
         Roles = MapToRoleDtosFromUserRoles(user),
     };
 
-    internal static UserProfileDto MapToProfile(User user) => new()
+    internal static UserProfileDto MapToProfile(User user, IReadOnlyList<string> permissions) => new()
     {
         Id = user.Id,
         FullName = user.FullName ?? user.Username,
@@ -191,6 +239,7 @@ public sealed class UserService(
         PhoneNumber = user.PhoneNumber,
         Roles = MapToRoleDtosFromUserRoles(user),
         Departments = MapToDistinctDepartmentNames(user),
+        Permissions = permissions,
     };
 
     internal static UserDetailDto MapToDetail(User user) => new()
