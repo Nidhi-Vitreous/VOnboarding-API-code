@@ -244,6 +244,44 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
     }
 
     [SkippableFact]
+    public async Task GetProfileAsync_returns_roles_with_department_and_deduped_departments()
+    {
+        SkipUnlessDatabaseAvailable();
+        await using var scope = fixture.CreateScope();
+        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+
+        var createResult = await userService.CreateAsync(new UserCreateRequest
+        {
+            FirstName = "Integration",
+            LastName = "Profile",
+            Password = "Strong@123",
+            ConfirmPassword = "Strong@123",
+            RoleIds = [PostgresUserTestFixture.RoleOneId, PostgresUserTestFixture.RoleTwoId],
+            IsActive = true,
+        });
+
+        var profile = await userService.GetProfileAsync(createResult.Id);
+
+        Assert.NotNull(profile);
+        Assert.Equal(PostgresUserTestFixture.RoleOneName, profile.Role);
+        Assert.Equal(2, profile.Roles.Count);
+        Assert.Contains(
+            profile.Roles,
+            role => role.Id == PostgresUserTestFixture.RoleOneId
+                && role.Name == PostgresUserTestFixture.RoleOneName
+                && role.DepartmentName == PostgresUserTestFixture.AdminDepartmentName);
+        Assert.Contains(
+            profile.Roles,
+            role => role.Id == PostgresUserTestFixture.RoleTwoId
+                && role.Name == PostgresUserTestFixture.RoleTwoName
+                && role.DepartmentName == PostgresUserTestFixture.SupportDepartmentName);
+
+        Assert.Equal(2, profile.Departments.Count);
+        Assert.Equal(PostgresUserTestFixture.AdminDepartmentName, profile.Departments[0]);
+        Assert.Equal(PostgresUserTestFixture.SupportDepartmentName, profile.Departments[1]);
+    }
+
+    [SkippableFact]
     public async Task CreateAsync_same_name_assigns_matching_suffix_to_username_and_email()
     {
         SkipUnlessDatabaseAvailable();

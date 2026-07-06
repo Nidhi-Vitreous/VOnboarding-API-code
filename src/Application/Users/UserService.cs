@@ -22,7 +22,7 @@ public sealed class UserService(
 
     public async Task<UserProfileDto?> GetProfileAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        var user = await userRepository.GetByIdWithRolesAsync(id, cancellationToken);
         return user is null ? null : MapToProfile(user);
     }
 
@@ -189,6 +189,8 @@ public sealed class UserService(
         Email = user.Email,
         Role = user.Role,
         PhoneNumber = user.PhoneNumber,
+        Roles = MapToRoleDtosFromUserRoles(user),
+        Departments = MapToDistinctDepartmentNames(user),
     };
 
     internal static UserDetailDto MapToDetail(User user) => new()
@@ -239,6 +241,25 @@ public sealed class UserService(
                 DepartmentName = userRole.Role.Department?.Name ?? string.Empty,
             })
             .ToList();
+
+    private static IReadOnlyList<string> MapToDistinctDepartmentNames(User user)
+    {
+        var departments = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var userRole in user.UserRoles)
+        {
+            var departmentName = userRole.Role?.Department?.Name;
+            if (string.IsNullOrWhiteSpace(departmentName) || !seen.Add(departmentName))
+            {
+                continue;
+            }
+
+            departments.Add(departmentName);
+        }
+
+        return departments;
+    }
 
     private static void SyncUserRoles(User user, IReadOnlyList<Role> resolvedRoles)
     {
