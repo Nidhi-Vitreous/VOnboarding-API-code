@@ -7,7 +7,7 @@ namespace Vitreous.Onboarding.Application.Roles;
 /// </summary>
 public static class DepartmentRolePermissionCatalog
 {
-    private static readonly string[] MerchantPermissions =
+    private static readonly string[] MerchantOnboardingPermissions =
     [
         PermissionSystemNames.MerchantRead,
         PermissionSystemNames.MerchantCreate,
@@ -36,7 +36,7 @@ public static class DepartmentRolePermissionCatalog
         PermissionSystemNames.DashboardView,
     ];
 
-    private static readonly string[] MerchantApplicationPermissions =
+    private static readonly string[] MerchantApplicationStatusPermissions =
     [
         PermissionSystemNames.MerchantApplicationApprove,
         PermissionSystemNames.MerchantApplicationReject,
@@ -44,7 +44,7 @@ public static class DepartmentRolePermissionCatalog
         PermissionSystemNames.MerchantApplicationComplete,
     ];
 
-    private static readonly string[] MerchantOrderPermissions =
+    private static readonly string[] MerchantOrderStatusPermissions =
     [
         PermissionSystemNames.MerchantOrderApprove,
         PermissionSystemNames.MerchantOrderReject,
@@ -52,37 +52,42 @@ public static class DepartmentRolePermissionCatalog
         PermissionSystemNames.MerchantOrderComplete,
     ];
 
-    private static readonly string[] AllOnboardingPermissions =
-        DepartmentPermissionRegistry.GetAllOnboardingPermissionNames().ToArray();
+    private static readonly string[] ExistingMerchantOrderPermissions =
+    [
+        PermissionSystemNames.ExistingMerchantOrderRead,
+        PermissionSystemNames.ExistingMerchantOrderCreate,
+        PermissionSystemNames.ExistingMerchantOrderUpdate,
+        PermissionSystemNames.ExistingMerchantOrderDelete,
+    ];
 
     private static readonly IReadOnlyDictionary<string, string[]> DepartmentPermissionMap =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Sales"] = Combine(MerchantPermissions, OnboardingFor("Sales")),
+            ["Sales"] = Combine(MerchantOnboardingPermissions, ExistingMerchantOrderPermissions),
             ["Filing"] = Combine(
-                MerchantPermissions,
-                OnboardingFor("Filing"),
-                MerchantApplicationPermissions,
-                MerchantOrderPermissions),
+                MerchantOnboardingPermissions,
+                MerchantApplicationStatusPermissions,
+                MerchantOrderStatusPermissions,
+                ExistingMerchantOrderPermissions),
             ["Terminal"] = Combine(
-                MerchantPermissions,
-                OnboardingFor("Terminal"),
-                MerchantOrderPermissions),
-            ["Billing"] = Combine(MerchantPermissions, OnboardingFor("Billing")),
+                MerchantOnboardingPermissions,
+                MerchantOrderStatusPermissions,
+                ExistingMerchantOrderPermissions),
+            ["Billing"] = MerchantOnboardingPermissions,
             ["Shipping"] = Combine(
-                MerchantPermissions,
-                OnboardingFor("Shipping"),
-                MerchantOrderPermissions),
-            ["Support"] = Combine(MerchantPermissions, OnboardingFor("Support")),
-            ["Installation"] = Combine(MerchantPermissions, OnboardingFor("Installation")),
+                MerchantOnboardingPermissions,
+                MerchantOrderStatusPermissions,
+                ExistingMerchantOrderPermissions),
+            ["Support"] = MerchantOnboardingPermissions,
+            ["Installation"] = Combine(MerchantOnboardingPermissions, ExistingMerchantOrderPermissions),
             ["Admin"] = Combine(
-                MerchantPermissions,
-                MerchantApplicationPermissions,
-                MerchantOrderPermissions,
+                MerchantOnboardingPermissions,
+                MerchantApplicationStatusPermissions,
+                MerchantOrderStatusPermissions,
+                ExistingMerchantOrderPermissions,
                 RoleManagementPermissions,
                 UserManagementPermissions,
-                DashboardPermissions,
-                OnboardingFor("Admin")),
+                DashboardPermissions),
         };
 
     public static IReadOnlyList<string> GetAllowedSystemNames(string departmentName) =>
@@ -100,19 +105,16 @@ public static class DepartmentRolePermissionCatalog
 
         var groups = new List<DepartmentPermissionGroupDefinition>();
 
-        AddGroup(groups, "merchant", "Merchant", MerchantPermissions, allowed);
-        AddGroup(groups, "merchant-application", "Merchant Application", MerchantApplicationPermissions, allowed);
-        AddGroup(groups, "merchant-order", "Merchant Order", MerchantOrderPermissions, allowed);
+        AddGroup(groups, "merchant-onboarding", "Merchant Onboarding", MerchantOnboardingPermissions, allowed);
+        AddGroup(groups, "merchant-application-status", "Merchant Application Status", MerchantApplicationStatusPermissions, allowed);
+        AddGroup(groups, "merchant-order-status", "Merchant Order Status", MerchantOrderStatusPermissions, allowed);
+        AddGroup(groups, "existing-merchant-order", "Existing Merchant Order", ExistingMerchantOrderPermissions, allowed);
         AddGroup(groups, "users", "Users", UserManagementPermissions, allowed);
         AddGroup(groups, "roles", "Roles", RoleManagementPermissions, allowed);
         AddGroup(groups, "dashboard", "Dashboard", DashboardPermissions, allowed);
-        AddGroup(groups, "onboarding", "Onboarding", AllOnboardingPermissions, allowed);
 
         return groups;
     }
-
-    private static string[] OnboardingFor(string departmentName) =>
-        DepartmentPermissionRegistry.GetOnboardingPermissionNamesForDepartmentName(departmentName).ToArray();
 
     private static string[] Combine(params IEnumerable<string>[] segments) =>
         segments.SelectMany(segment => segment).ToArray();

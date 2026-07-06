@@ -28,19 +28,12 @@ public static class PermissionSystemNames
     public const string MerchantOrderHold = "merchant.order.hold";
     public const string MerchantOrderComplete = "merchant.order.complete";
 
-    public const string DashboardView = "dashboard.view";
+    public const string ExistingMerchantOrderRead = "existing.merchant.order.read";
+    public const string ExistingMerchantOrderCreate = "existing.merchant.order.create";
+    public const string ExistingMerchantOrderUpdate = "existing.merchant.order.update";
+    public const string ExistingMerchantOrderDelete = "existing.merchant.order.delete";
 
-    public const string OnboardingRead = "onboarding.read";
-    public const string OnboardingCreate = "onboarding.create";
-    public const string OnboardingRefile = "onboarding.refile";
-    public const string OnboardingApprove = "onboarding.approve";
-    public const string OnboardingReject = "onboarding.reject";
-    public const string OnboardingHold = "onboarding.hold";
-    public const string OnboardingResume = "onboarding.resume";
-    public const string OnboardingBlock = "onboarding.block";
-    public const string OnboardingSubmit = "onboarding.submit";
-    public const string OnboardingResolve = "onboarding.resolve";
-    public const string OnboardingBlockInitiate = "onboarding.block.initiate";
+    public const string DashboardView = "dashboard.view";
 
     public static readonly string[] All =
     [
@@ -51,9 +44,8 @@ public static class PermissionSystemNames
         MerchantApplicationHold, MerchantApplicationComplete,
         MerchantOrderApprove, MerchantOrderReject,
         MerchantOrderHold, MerchantOrderComplete,
+        ExistingMerchantOrderRead, ExistingMerchantOrderCreate,
+        ExistingMerchantOrderUpdate, ExistingMerchantOrderDelete,
         DashboardView,
-        OnboardingRead, OnboardingCreate, OnboardingRefile, OnboardingApprove,
-        OnboardingReject, OnboardingHold, OnboardingResume, OnboardingBlock,
-        OnboardingSubmit, OnboardingResolve, OnboardingBlockInitiate,
     ];
 }

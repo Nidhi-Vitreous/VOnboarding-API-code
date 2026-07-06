@@ -16,7 +16,7 @@ public class DepartmentRolePermissionCatalogTests
     [InlineData("Support")]
     [InlineData("Installation")]
     [InlineData("Admin")]
-    public void All_departments_include_merchant_crud_permissions(string departmentName)
+    public void All_departments_include_merchant_onboarding_crud_permissions(string departmentName)
     {
         var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames(departmentName);
 
@@ -42,7 +42,7 @@ public class DepartmentRolePermissionCatalogTests
     }
 
     [Fact]
-    public void Admin_department_includes_merchant_application_and_order_permissions()
+    public void Admin_department_includes_merchant_status_and_existing_order_permissions()
     {
         var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames("Admin");
 
@@ -54,6 +54,10 @@ public class DepartmentRolePermissionCatalogTests
         Assert.Contains(PermissionSystemNames.MerchantOrderReject, allowed);
         Assert.Contains(PermissionSystemNames.MerchantOrderHold, allowed);
         Assert.Contains(PermissionSystemNames.MerchantOrderComplete, allowed);
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderRead, allowed);
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderCreate, allowed);
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderUpdate, allowed);
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderDelete, allowed);
     }
 
     [Fact]
@@ -62,13 +66,14 @@ public class DepartmentRolePermissionCatalogTests
         var groups = DepartmentRolePermissionCatalog.GetPermissionGroups("Admin");
         var groupKeys = groups.Select(group => group.Key).ToList();
 
-        Assert.Contains("merchant", groupKeys);
-        Assert.Contains("merchant-application", groupKeys);
-        Assert.Contains("merchant-order", groupKeys);
+        Assert.Contains("merchant-onboarding", groupKeys);
+        Assert.Contains("merchant-application-status", groupKeys);
+        Assert.Contains("merchant-order-status", groupKeys);
+        Assert.Contains("existing-merchant-order", groupKeys);
         Assert.Contains("users", groupKeys);
         Assert.Contains("roles", groupKeys);
         Assert.Contains("dashboard", groupKeys);
-        Assert.Contains("onboarding", groupKeys);
+        Assert.DoesNotContain("onboarding", groupKeys);
     }
 
     [Theory]
@@ -84,7 +89,7 @@ public class DepartmentRolePermissionCatalogTests
     }
 
     [Fact]
-    public void Filing_department_includes_merchant_application_and_order_permissions()
+    public void Filing_department_includes_merchant_application_order_status_and_existing_order_permissions()
     {
         var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames("Filing");
 
@@ -92,12 +97,28 @@ public class DepartmentRolePermissionCatalogTests
         Assert.Contains(PermissionSystemNames.MerchantApplicationReject, allowed);
         Assert.Contains(PermissionSystemNames.MerchantOrderApprove, allowed);
         Assert.Contains(PermissionSystemNames.MerchantOrderReject, allowed);
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderRead, allowed);
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderDelete, allowed);
     }
 
     [Theory]
     [InlineData("Terminal")]
     [InlineData("Shipping")]
-    public void Terminal_and_shipping_departments_include_merchant_order_permissions_only(string departmentName)
+    [InlineData("Sales")]
+    [InlineData("Installation")]
+    public void Departments_with_existing_merchant_order_include_order_status_where_applicable(
+        string departmentName)
+    {
+        var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames(departmentName);
+
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderRead, allowed);
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderDelete, allowed);
+    }
+
+    [Theory]
+    [InlineData("Terminal")]
+    [InlineData("Shipping")]
+    public void Terminal_and_shipping_departments_include_merchant_order_status_permissions(string departmentName)
     {
         var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames(departmentName);
 
@@ -108,7 +129,7 @@ public class DepartmentRolePermissionCatalogTests
     }
 
     [Fact]
-    public void Sales_department_does_not_include_merchant_application_or_order_permissions()
+    public void Sales_department_includes_existing_merchant_order_but_not_merchant_status_permissions()
     {
         var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames("Sales");
 
@@ -116,23 +137,37 @@ public class DepartmentRolePermissionCatalogTests
         Assert.DoesNotContain(PermissionSystemNames.MerchantApplicationReject, allowed);
         Assert.DoesNotContain(PermissionSystemNames.MerchantOrderApprove, allowed);
         Assert.DoesNotContain(PermissionSystemNames.MerchantOrderReject, allowed);
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderRead, allowed);
+        Assert.Contains(PermissionSystemNames.ExistingMerchantOrderDelete, allowed);
     }
 
     [Fact]
-    public void Filing_permission_groups_include_merchant_application_and_order_sections()
+    public void No_department_includes_onboarding_permissions()
+    {
+        foreach (var departmentName in new[] { "Sales", "Filing", "Terminal", "Billing", "Shipping", "Support", "Installation", "Admin" })
+        {
+            var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames(departmentName);
+
+            Assert.DoesNotContain(allowed, permission => permission.StartsWith("onboarding.", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
+    public void Filing_permission_groups_include_merchant_application_and_order_status_sections()
     {
         var groups = DepartmentRolePermissionCatalog.GetPermissionGroups("Filing");
         var groupKeys = groups.Select(group => group.Key).ToList();
 
-        Assert.Contains("merchant-application", groupKeys);
-        Assert.Contains("merchant-order", groupKeys);
+        Assert.Contains("merchant-application-status", groupKeys);
+        Assert.Contains("merchant-order-status", groupKeys);
+        Assert.Contains("existing-merchant-order", groupKeys);
 
         var applicationNames = groups
-            .Single(group => group.Key == "merchant-application")
+            .Single(group => group.Key == "merchant-application-status")
             .Permissions
             .Select(permission => permission.SystemName);
         var orderNames = groups
-            .Single(group => group.Key == "merchant-order")
+            .Single(group => group.Key == "merchant-order-status")
             .Permissions
             .Select(permission => permission.SystemName);
 
@@ -152,6 +187,15 @@ public class DepartmentRolePermissionCatalogTests
                 PermissionSystemNames.MerchantOrderComplete,
             ],
             orderNames);
+    }
+
+    [Fact]
+    public void Merchant_onboarding_group_uses_renamed_title()
+    {
+        var groups = DepartmentRolePermissionCatalog.GetPermissionGroups("Sales");
+        var merchantGroup = groups.Single(group => group.Key == "merchant-onboarding");
+
+        Assert.Equal("Merchant Onboarding", merchantGroup.Title);
     }
 }
 
