@@ -10,12 +10,17 @@ public class UserServiceStatusTests
     [Fact]
     public async Task SetStatusAsync_unknown_id_returns_null_without_persisting()
     {
-        var userRepository = new FakeUserRepository();
+        var actorId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository
+        {
+            User = CreateUser(actorId, isActive: true),
+        };
         var sut = CreateSut(userRepository);
 
         var result = await sut.SetStatusAsync(
             Guid.NewGuid(),
-            new UserStatusUpdateRequest { IsActive = false });
+            new UserStatusUpdateRequest { IsActive = false },
+            actorId);
 
         Assert.Null(result);
         Assert.False(userRepository.UpdateCalled);
@@ -31,7 +36,8 @@ public class UserServiceStatusTests
 
         var result = await sut.SetStatusAsync(
             userId,
-            new UserStatusUpdateRequest { IsActive = false });
+            new UserStatusUpdateRequest { IsActive = false },
+            userId);
 
         Assert.NotNull(result);
         Assert.Equal(userId, result.Id);
@@ -52,7 +58,8 @@ public class UserServiceStatusTests
 
         var result = await sut.SetStatusAsync(
             userId,
-            new UserStatusUpdateRequest { IsActive = true });
+            new UserStatusUpdateRequest { IsActive = true },
+            userId);
 
         Assert.NotNull(result);
         Assert.Equal(userId, result.Id);
@@ -95,8 +102,15 @@ public class UserServiceStatusTests
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(User is not null && User.Id == id ? User : null);
 
-        public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
+        public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (User is not null && User.Id == id)
+            {
+                return Task.FromResult<User?>(User);
+            }
+
+            return Task.FromResult<User?>(null);
+        }
 
         public Task<User?> GetByIdTrackedWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
@@ -146,6 +160,9 @@ public class UserServiceStatusTests
             IEnumerable<string> roleNames,
             CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
+
+        public Task DeleteAsync(User user, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeRoleRepository : IRoleRepository

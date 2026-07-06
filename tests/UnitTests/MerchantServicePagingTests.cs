@@ -164,6 +164,9 @@ public class MerchantServicePagingTests
             IEnumerable<string> roleNames,
             CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
+
+        public Task DeleteAsync(User user, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeDepartmentResolver : IDepartmentResolver

@@ -23,7 +23,7 @@ public class UserServiceUpdateTests
         };
         var sut = CreateSut(userRepository, roleRepository);
 
-        await sut.UpdateAsync(userId, ValidUpdateRequest([roleId]));
+        await sut.UpdateAsync(userId, ValidUpdateRequest([roleId]), userId);
 
         Assert.True(userRepository.SaveTrackedChangesCalled);
         Assert.False(userRepository.UpdateCalled);
@@ -32,10 +32,11 @@ public class UserServiceUpdateTests
     [Fact]
     public async Task UpdateAsync_unknown_id_returns_null_without_persisting()
     {
-        var userRepository = new FakeUserRepository();
+        var actorId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository { User = CreateUser(actorId) };
         var sut = CreateSut(userRepository);
 
-        var result = await sut.UpdateAsync(Guid.NewGuid(), ValidUpdateRequest([Guid.NewGuid()]));
+        var result = await sut.UpdateAsync(Guid.NewGuid(), ValidUpdateRequest([Guid.NewGuid()]), actorId);
 
         Assert.Null(result);
         Assert.False(userRepository.SaveTrackedChangesCalled);
@@ -65,7 +66,7 @@ public class UserServiceUpdateTests
         };
         var sut = CreateSut(userRepository, roleRepository);
 
-        var result = await sut.UpdateAsync(userId, ValidUpdateRequest([keepRoleId, addRoleId]));
+        var result = await sut.UpdateAsync(userId, ValidUpdateRequest([keepRoleId, addRoleId]), userId);
 
         Assert.NotNull(result);
         Assert.True(userRepository.SaveTrackedChangesCalled);
@@ -88,7 +89,7 @@ public class UserServiceUpdateTests
         var sut = CreateSut(userRepository, roleRepository);
 
         var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            sut.UpdateAsync(userId, ValidUpdateRequest([Guid.NewGuid()])));
+            sut.UpdateAsync(userId, ValidUpdateRequest([Guid.NewGuid()]), userId));
 
         Assert.Equal(UserMessages.InvalidRole, exception.Message);
         Assert.Contains(UserMessages.RoleNotFound, exception.Details ?? []);
@@ -111,7 +112,7 @@ public class UserServiceUpdateTests
         var sut = CreateSut(userRepository, roleRepository);
 
         var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            sut.UpdateAsync(userId, ValidUpdateRequest([roleId])));
+            sut.UpdateAsync(userId, ValidUpdateRequest([roleId]), userId));
 
         Assert.Equal(UserMessages.InvalidRole, exception.Message);
         Assert.Contains(UserMessages.RoleInactive, exception.Details ?? []);
@@ -126,7 +127,7 @@ public class UserServiceUpdateTests
         var sut = CreateSut(userRepository);
 
         var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            sut.UpdateAsync(userId, ValidUpdateRequest([])));
+            sut.UpdateAsync(userId, ValidUpdateRequest([]), userId));
 
         Assert.Equal("Validation failed.", exception.Message);
         Assert.Contains("At least one role is required.", exception.Details ?? []);
@@ -157,7 +158,7 @@ public class UserServiceUpdateTests
             request.OfficeNumber = "  101  ";
             request.Notes = "  Notes  ";
             request.TwoFactorEnabled = true;
-        }));
+        }), userId);
 
         Assert.NotNull(result);
         Assert.Equal("Yash", result.FirstName);
@@ -243,13 +244,57 @@ public class UserServiceUpdateTests
         FakeRoleRepository? roleRepository = null) =>
         new(userRepository, roleRepository ?? new FakeRoleRepository(), new FakePasswordHasher(), CreateUserServiceConfiguration());
 
-    private static User CreateUser(Guid id) => new()
+    [Fact]
+    public async Task UpdateAsync_admin_cannot_edit_super_admin()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository
+        {
+            User = CreateUser(targetId, "SUPER ADMIN"),
+            Actor = CreateUser(actorId, "Admin"),
+        };
+        var sut = CreateSut(userRepository);
+
+        var exception = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            sut.UpdateAsync(targetId, ValidUpdateRequest([Guid.NewGuid()]), actorId));
+
+        Assert.Equal(UserMessages.CannotEditSuperAdmin, exception.Message);
+        Assert.False(userRepository.SaveTrackedChangesCalled);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_super_admin_can_edit_own_account()
+    {
+        var userId = Guid.NewGuid();
+        var roleId = Guid.NewGuid();
+        var userRepository = new FakeUserRepository
+        {
+            User = CreateUser(userId, "SUPER ADMIN"),
+            Actor = CreateUser(userId, "SUPER ADMIN"),
+        };
+        var roleRepository = new FakeRoleRepository
+        {
+            Roles = new Dictionary<Guid, Role>
+            {
+                [roleId] = CreateRole(roleId, "SUPER ADMIN", "Admin"),
+            },
+        };
+        var sut = CreateSut(userRepository, roleRepository);
+
+        var result = await sut.UpdateAsync(userId, ValidUpdateRequest([roleId]), userId);
+
+        Assert.NotNull(result);
+        Assert.True(userRepository.SaveTrackedChangesCalled);
+    }
+
+    private static User CreateUser(Guid id, string role = "Support") => new()
     {
         Id = id,
         Username = "jane",
         Email = "jane@example.com",
         PasswordHash = "hash",
-        Role = "Support",
+        Role = role,
         FullName = "Jane Doe",
         FirstName = "Jane",
         LastName = "Doe",
@@ -293,6 +338,7 @@ public class UserServiceUpdateTests
     private sealed class FakeUserRepository : IUserRepository
     {
         public User? User { get; init; }
+        public User? Actor { get; init; }
         public User? UserWithRoles { get; init; }
         public IReadOnlyList<User> PageItems { get; init; } = [];
         public int TotalCount { get; init; }
@@ -303,8 +349,25 @@ public class UserServiceUpdateTests
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(User is not null && User.Id == id ? User : null);
 
-        public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
-            Task.FromResult(UserWithRoles is not null && UserWithRoles.Id == id ? UserWithRoles : null);
+        public Task<User?> GetByIdWithRolesAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (Actor is not null && Actor.Id == id)
+            {
+                return Task.FromResult<User?>(Actor);
+            }
+
+            if (User is not null && User.Id == id)
+            {
+                return Task.FromResult<User?>(User);
+            }
+
+            if (UserWithRoles is not null && UserWithRoles.Id == id)
+            {
+                return Task.FromResult<User?>(UserWithRoles);
+            }
+
+            return Task.FromResult<User?>(null);
+        }
 
         public Task<User?> GetByIdTrackedWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(User is not null && User.Id == id ? User : null);
@@ -358,6 +421,9 @@ public class UserServiceUpdateTests
             IEnumerable<string> roleNames,
             CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
+
+        public Task DeleteAsync(User user, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeRoleRepository : IRoleRepository

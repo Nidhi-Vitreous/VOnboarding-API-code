@@ -87,7 +87,12 @@ public sealed class UsersController(IUserService userService) : ControllerBase
         [FromBody] UserUpdateRequest request,
         CancellationToken cancellationToken)
     {
-        var user = await userService.UpdateAsync(id, request, cancellationToken);
+        if (!TryGetCurrentUserId(out var actorId))
+        {
+            return Unauthorized(new ErrorResponse { Message = "Unauthorized." });
+        }
+
+        var user = await userService.UpdateAsync(id, request, actorId, cancellationToken);
         return user is null
             ? NotFound(new ErrorResponse { Message = "User not found." })
             : Ok(user);
@@ -96,6 +101,7 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     [HttpPatch("{id:guid}/status")]
     [RequireSystemPermission(PermissionSystemNames.UsersUpdate)]
     [ProducesResponseType(typeof(UserStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
@@ -104,10 +110,35 @@ public sealed class UsersController(IUserService userService) : ControllerBase
         [FromBody] UserStatusUpdateRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await userService.SetStatusAsync(id, request, cancellationToken);
+        if (!TryGetCurrentUserId(out var actorId))
+        {
+            return Unauthorized(new ErrorResponse { Message = "Unauthorized." });
+        }
+
+        var result = await userService.SetStatusAsync(id, request, actorId, cancellationToken);
         return result is null
             ? NotFound(new ErrorResponse { Message = "User not found." })
             : Ok(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [RequireSystemPermission(PermissionSystemNames.UsersDelete)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var actorId))
+        {
+            return Unauthorized(new ErrorResponse { Message = "Unauthorized." });
+        }
+
+        var deleted = await userService.DeleteAsync(id, actorId, cancellationToken);
+        return deleted
+            ? NoContent()
+            : NotFound(new ErrorResponse { Message = "User not found." });
     }
 
     private bool TryGetCurrentUserId(out Guid userId)

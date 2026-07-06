@@ -1,5 +1,4 @@
 using Vitreous.Onboarding.Application.Common;
-using Vitreous.Onboarding.Application.Common;
 using Vitreous.Onboarding.Application.Interfaces;
 using Vitreous.Onboarding.Domain.Entities;
 

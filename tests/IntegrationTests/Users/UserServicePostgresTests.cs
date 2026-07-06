@@ -94,7 +94,7 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
             LastName = "Update",
             PhoneNumber = "5551234567",
             RoleIds = [PostgresUserTestFixture.RoleTwoId, PostgresUserTestFixture.RoleThreeId],
-        });
+        }, createResult.Id);
 
         Assert.NotNull(updateResult);
 
@@ -128,7 +128,7 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
         var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        await userService.CreateAsync(new UserCreateRequest
+        var createResult = await userService.CreateAsync(new UserCreateRequest
         {
             FirstName = "Existing",
             LastName = "User",
@@ -146,7 +146,7 @@ public sealed class UserServicePostgresTests(PostgresUserTestFixture fixture) : 
             FirstName = "Ghost",
             LastName = "User",
             RoleIds = [PostgresUserTestFixture.RoleTwoId],
-        });
+        }, createResult.Id);
 
         Assert.Null(result);
 

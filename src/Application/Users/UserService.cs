@@ -110,14 +110,22 @@ public sealed class UserService(
     public async Task<UserDetailDto?> UpdateAsync(
         Guid id,
         UserUpdateRequest request,
+        Guid actorId,
         CancellationToken cancellationToken = default)
     {
+        var actor = await userRepository.GetByIdWithRolesAsync(actorId, cancellationToken);
+        if (actor is null)
+        {
+            throw new BusinessRuleException(UserMessages.ActorNotFound);
+        }
+
         var user = await userRepository.GetByIdTrackedWithRolesAsync(id, cancellationToken);
         if (user is null)
         {
             return null;
         }
 
+        UserProtectionRules.ValidateSuperAdminSelfServiceOnly(actor, user);
         UserValidation.ValidateUpdateRequest(request);
         var resolvedRoles = await ResolveRolesAsync(request.RoleIds, cancellationToken);
 
@@ -146,13 +154,22 @@ public sealed class UserService(
     public async Task<UserStatusResponse?> SetStatusAsync(
         Guid id,
         UserStatusUpdateRequest request,
+        Guid actorId,
         CancellationToken cancellationToken = default)
     {
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
+        var actor = await userRepository.GetByIdWithRolesAsync(actorId, cancellationToken);
+        if (actor is null)
+        {
+            throw new BusinessRuleException(UserMessages.ActorNotFound);
+        }
+
+        var user = await userRepository.GetByIdWithRolesAsync(id, cancellationToken);
         if (user is null)
         {
             return null;
         }
+
+        UserProtectionRules.ValidateSuperAdminSelfServiceOnly(actor, user);
 
         user.IsActive = request.IsActive;
         user.UpdatedAt = DateTime.UtcNow;
@@ -164,6 +181,29 @@ public sealed class UserService(
             IsActive = user.IsActive,
             UpdatedAt = user.UpdatedAt,
         };
+    }
+
+    public async Task<bool> DeleteAsync(
+        Guid id,
+        Guid actorId,
+        CancellationToken cancellationToken = default)
+    {
+        var actor = await userRepository.GetByIdWithRolesAsync(actorId, cancellationToken);
+        if (actor is null)
+        {
+            throw new BusinessRuleException(UserMessages.ActorNotFound);
+        }
+
+        var target = await userRepository.GetByIdTrackedWithRolesAsync(id, cancellationToken);
+        if (target is null)
+        {
+            return false;
+        }
+
+        UserProtectionRules.ValidateDeletion(actor, target);
+        await userRepository.DeleteAsync(target, cancellationToken);
+
+        return true;
     }
 
     internal static UserSummaryDto MapToSummary(User user) => new()

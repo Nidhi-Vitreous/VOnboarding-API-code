@@ -14,6 +14,10 @@ internal static class RoleSeedData
         new("SUPER ADMIN", "Admin", 1, true,
         [
             "merchant.read", "merchant.create", "merchant.update", "merchant.delete",
+            "merchant.application.approve", "merchant.application.reject",
+            "merchant.application.hold", "merchant.application.complete",
+            "merchant.order.approve", "merchant.order.reject",
+            "merchant.order.hold", "merchant.order.complete",
             "users.read", "users.create", "users.update", "users.delete",
             "roles.read", "roles.create", "roles.update", "roles.delete",
             "dashboard.view",
@@ -30,6 +34,10 @@ internal static class RoleSeedData
         new("Admin", "Admin", 4, false,
         [
             "merchant.read", "merchant.create", "merchant.update", "merchant.delete",
+            "merchant.application.approve", "merchant.application.reject",
+            "merchant.application.hold", "merchant.application.complete",
+            "merchant.order.approve", "merchant.order.reject",
+            "merchant.order.hold", "merchant.order.complete",
             "users.read", "users.create", "users.update", "users.delete",
             "roles.read", "roles.create", "roles.update", "roles.delete",
             "dashboard.view",
@@ -39,6 +47,11 @@ internal static class RoleSeedData
         ]),
         new("Filing Clerk", "Filing", 5, false,
         [
+            "merchant.read", "merchant.create", "merchant.update", "merchant.delete",
+            "merchant.application.approve", "merchant.application.reject",
+            "merchant.application.hold", "merchant.application.complete",
+            "merchant.order.approve", "merchant.order.reject",
+            "merchant.order.hold", "merchant.order.complete",
             "onboarding.read", "onboarding.create", "onboarding.refile", "onboarding.approve",
             "onboarding.reject", "onboarding.hold", "onboarding.resume", "onboarding.block",
         ]),

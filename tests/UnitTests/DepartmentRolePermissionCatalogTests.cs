@@ -7,6 +7,82 @@ namespace Vitreous.Onboarding.UnitTests;
 
 public class DepartmentRolePermissionCatalogTests
 {
+    [Theory]
+    [InlineData("Sales")]
+    [InlineData("Filing")]
+    [InlineData("Terminal")]
+    [InlineData("Billing")]
+    [InlineData("Shipping")]
+    [InlineData("Support")]
+    [InlineData("Installation")]
+    [InlineData("Admin")]
+    public void All_departments_include_merchant_crud_permissions(string departmentName)
+    {
+        var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames(departmentName);
+
+        Assert.Contains(PermissionSystemNames.MerchantRead, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantCreate, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantUpdate, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantDelete, allowed);
+    }
+
+    [Fact]
+    public void Admin_department_includes_user_and_role_crud_permissions()
+    {
+        var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames("Admin");
+
+        Assert.Contains(PermissionSystemNames.UsersRead, allowed);
+        Assert.Contains(PermissionSystemNames.UsersCreate, allowed);
+        Assert.Contains(PermissionSystemNames.UsersUpdate, allowed);
+        Assert.Contains(PermissionSystemNames.UsersDelete, allowed);
+        Assert.Contains(PermissionSystemNames.RolesRead, allowed);
+        Assert.Contains(PermissionSystemNames.RolesCreate, allowed);
+        Assert.Contains(PermissionSystemNames.RolesUpdate, allowed);
+        Assert.Contains(PermissionSystemNames.RolesDelete, allowed);
+    }
+
+    [Fact]
+    public void Admin_department_includes_merchant_application_and_order_permissions()
+    {
+        var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames("Admin");
+
+        Assert.Contains(PermissionSystemNames.MerchantApplicationApprove, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantApplicationReject, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantApplicationHold, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantApplicationComplete, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantOrderApprove, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantOrderReject, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantOrderHold, allowed);
+        Assert.Contains(PermissionSystemNames.MerchantOrderComplete, allowed);
+    }
+
+    [Fact]
+    public void Admin_permission_groups_include_all_admin_department_sections()
+    {
+        var groups = DepartmentRolePermissionCatalog.GetPermissionGroups("Admin");
+        var groupKeys = groups.Select(group => group.Key).ToList();
+
+        Assert.Contains("merchant", groupKeys);
+        Assert.Contains("merchant-application", groupKeys);
+        Assert.Contains("merchant-order", groupKeys);
+        Assert.Contains("users", groupKeys);
+        Assert.Contains("roles", groupKeys);
+        Assert.Contains("dashboard", groupKeys);
+        Assert.Contains("onboarding", groupKeys);
+    }
+
+    [Theory]
+    [InlineData("Sales")]
+    [InlineData("Filing")]
+    [InlineData("Terminal")]
+    public void Non_admin_departments_exclude_user_and_role_crud_permissions(string departmentName)
+    {
+        var allowed = DepartmentRolePermissionCatalog.GetAllowedSystemNames(departmentName);
+
+        Assert.DoesNotContain(PermissionSystemNames.UsersRead, allowed);
+        Assert.DoesNotContain(PermissionSystemNames.RolesRead, allowed);
+    }
+
     [Fact]
     public void Filing_department_includes_merchant_application_and_order_permissions()
     {

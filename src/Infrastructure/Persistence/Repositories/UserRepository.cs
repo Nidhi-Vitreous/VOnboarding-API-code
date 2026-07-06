@@ -20,6 +20,7 @@ public sealed class UserRepository(ApplicationDbContext dbContext) : IUserReposi
     public Task<User?> GetByIdTrackedWithRolesAsync(Guid id, CancellationToken cancellationToken = default) =>
         dbContext.Users
             .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
     public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
@@ -76,6 +77,12 @@ public sealed class UserRepository(ApplicationDbContext dbContext) : IUserReposi
 
     public Task SaveTrackedChangesAsync(CancellationToken cancellationToken = default) =>
         dbContext.SaveChangesAsync(cancellationToken);
+
+    public async Task DeleteAsync(User user, CancellationToken cancellationToken = default)
+    {
+        dbContext.Users.Remove(user);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 
     public Task<bool> UsernameExistsAsync(
         string username,

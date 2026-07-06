@@ -9,33 +9,26 @@ public static class DepartmentRolePermissionCatalog
 {
     private static readonly string[] MerchantPermissions =
     [
-        "merchant.read",
-        "merchant.create",
-        "merchant.update",
-        "merchant.delete",
-    ];
-
-    private static readonly string[] SalesMerchantPermissions =
-    [
-        "merchant.read",
-        "merchant.create",
-        "merchant.update",
+        PermissionSystemNames.MerchantRead,
+        PermissionSystemNames.MerchantCreate,
+        PermissionSystemNames.MerchantUpdate,
+        PermissionSystemNames.MerchantDelete,
     ];
 
     private static readonly string[] RoleManagementPermissions =
     [
-        "roles.read",
-        "roles.create",
-        "roles.update",
-        "roles.delete",
+        PermissionSystemNames.RolesRead,
+        PermissionSystemNames.RolesCreate,
+        PermissionSystemNames.RolesUpdate,
+        PermissionSystemNames.RolesDelete,
     ];
 
     private static readonly string[] UserManagementPermissions =
     [
-        "users.read",
-        "users.create",
-        "users.update",
-        "users.delete",
+        PermissionSystemNames.UsersRead,
+        PermissionSystemNames.UsersCreate,
+        PermissionSystemNames.UsersUpdate,
+        PermissionSystemNames.UsersDelete,
     ];
 
     private static readonly string[] DashboardPermissions =
@@ -65,18 +58,27 @@ public static class DepartmentRolePermissionCatalog
     private static readonly IReadOnlyDictionary<string, string[]> DepartmentPermissionMap =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Sales"] = Combine(SalesMerchantPermissions, OnboardingFor("Sales")),
+            ["Sales"] = Combine(MerchantPermissions, OnboardingFor("Sales")),
             ["Filing"] = Combine(
+                MerchantPermissions,
                 OnboardingFor("Filing"),
                 MerchantApplicationPermissions,
                 MerchantOrderPermissions),
-            ["Terminal"] = Combine(OnboardingFor("Terminal"), MerchantOrderPermissions),
-            ["Billing"] = OnboardingFor("Billing"),
-            ["Shipping"] = Combine(OnboardingFor("Shipping"), MerchantOrderPermissions),
-            ["Support"] = OnboardingFor("Support"),
-            ["Installation"] = OnboardingFor("Installation"),
+            ["Terminal"] = Combine(
+                MerchantPermissions,
+                OnboardingFor("Terminal"),
+                MerchantOrderPermissions),
+            ["Billing"] = Combine(MerchantPermissions, OnboardingFor("Billing")),
+            ["Shipping"] = Combine(
+                MerchantPermissions,
+                OnboardingFor("Shipping"),
+                MerchantOrderPermissions),
+            ["Support"] = Combine(MerchantPermissions, OnboardingFor("Support")),
+            ["Installation"] = Combine(MerchantPermissions, OnboardingFor("Installation")),
             ["Admin"] = Combine(
                 MerchantPermissions,
+                MerchantApplicationPermissions,
+                MerchantOrderPermissions,
                 RoleManagementPermissions,
                 UserManagementPermissions,
                 DashboardPermissions,
@@ -101,8 +103,8 @@ public static class DepartmentRolePermissionCatalog
         AddGroup(groups, "merchant", "Merchant", MerchantPermissions, allowed);
         AddGroup(groups, "merchant-application", "Merchant Application", MerchantApplicationPermissions, allowed);
         AddGroup(groups, "merchant-order", "Merchant Order", MerchantOrderPermissions, allowed);
-        AddGroup(groups, "roles", "Roles", RoleManagementPermissions, allowed);
         AddGroup(groups, "users", "Users", UserManagementPermissions, allowed);
+        AddGroup(groups, "roles", "Roles", RoleManagementPermissions, allowed);
         AddGroup(groups, "dashboard", "Dashboard", DashboardPermissions, allowed);
         AddGroup(groups, "onboarding", "Onboarding", AllOnboardingPermissions, allowed);
 

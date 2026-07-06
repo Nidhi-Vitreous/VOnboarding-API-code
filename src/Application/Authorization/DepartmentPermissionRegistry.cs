@@ -122,6 +122,12 @@ public static class DepartmentPermissionRegistry
             ["Administration"] = Department.Admin,
         };
 
+    private static readonly HashSet<string> SuperAdminRoleNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "SUPER ADMIN",
+        "Super Admin",
+    };
+
     private static readonly HashSet<string> AdminRoleNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "Admin",
@@ -157,6 +163,9 @@ public static class DepartmentPermissionRegistry
 
         return Department.Unknown;
     }
+
+    public static bool IsSuperAdminRoleName(string? roleName) =>
+        !string.IsNullOrWhiteSpace(roleName) && SuperAdminRoleNames.Contains(roleName.Trim());
 
     public static bool IsAdminRoleName(string? roleName) =>
         !string.IsNullOrWhiteSpace(roleName) && AdminRoleNames.Contains(roleName.Trim());
