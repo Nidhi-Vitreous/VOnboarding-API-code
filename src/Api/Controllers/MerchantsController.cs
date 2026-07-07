@@ -139,6 +139,20 @@ public sealed class MerchantsController(IMerchantService merchantService) : Cont
             : Ok(auditLog);
     }
 
+    [HttpDelete("{id:guid}")]
+    [RequireSystemPermission(PermissionSystemNames.MerchantDelete)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await merchantService.DeleteAsync(id, cancellationToken);
+        return deleted
+            ? NoContent()
+            : NotFound(new ErrorResponse { Message = MerchantMessages.NotFound });
+    }
+
     private bool TryGetCurrentUserId(out Guid userId)
     {
         var rawUserId = User.FindFirstValue("userId")

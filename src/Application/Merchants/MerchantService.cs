@@ -255,6 +255,9 @@ public sealed class MerchantService(
         };
     }
 
+    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default) =>
+        merchantRepository.DeleteAsync(id, cancellationToken);
+
     private static MerchantListQuery NormalizeListQuery(MerchantListQuery query, int page, int pageSize) =>
         new()
         {

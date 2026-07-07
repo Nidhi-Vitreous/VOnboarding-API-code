@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<Merchant> Merchants => Set<Merchant>();
     public DbSet<MerchantStatusHistory> MerchantStatusHistory => Set<MerchantStatusHistory>();
+    public DbSet<ExistingMerchantOrder> ExistingMerchantOrders => Set<ExistingMerchantOrder>();
     public DbSet<AuditLogEntry> AuditLog => Set<AuditLogEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -36,6 +37,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
         modelBuilder.ApplyConfiguration(new MerchantConfiguration());
         modelBuilder.ApplyConfiguration(new MerchantStatusHistoryConfiguration());
+        modelBuilder.ApplyConfiguration(new ExistingMerchantOrderConfiguration());
         modelBuilder.ApplyConfiguration(new AuditLogEntryConfiguration());
     }
 }
