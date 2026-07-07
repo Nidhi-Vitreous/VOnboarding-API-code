@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IMerchantRepository, MerchantRepository>();
+        services.AddScoped<IExistingMerchantOrderRepository, ExistingMerchantOrderRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();

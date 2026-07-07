@@ -93,4 +93,25 @@ public sealed class MerchantRepository(ApplicationDbContext dbContext) : IMercha
         dbContext.AuditLog.Add(entry);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var merchant = await dbContext.Merchants
+            .Include(m => m.StatusHistory)
+            .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+
+        if (merchant is null)
+        {
+            return false;
+        }
+
+        var auditEntries = await dbContext.AuditLog
+            .Where(entry => entry.EntityType == "Merchant" && entry.EntityId == id)
+            .ToListAsync(cancellationToken);
+
+        dbContext.AuditLog.RemoveRange(auditEntries);
+        dbContext.Merchants.Remove(merchant);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }

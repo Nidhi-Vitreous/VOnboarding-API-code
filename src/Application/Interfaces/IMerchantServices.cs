@@ -21,6 +21,7 @@ public interface IMerchantRepository
     Task AddStatusHistoryAsync(MerchantStatusHistory history, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AuditLogEntry>> GetAuditLogAsync(Guid merchantId, CancellationToken cancellationToken = default);
     Task AddAuditLogAsync(AuditLogEntry entry, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
 public interface IMerchantService
@@ -40,4 +41,5 @@ public interface IMerchantService
         CancellationToken cancellationToken = default);
     Task<StatusHistoryListResponse?> GetStatusHistoryAsync(Guid id, CancellationToken cancellationToken = default);
     Task<AuditLogListResponse?> GetAuditLogAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }
